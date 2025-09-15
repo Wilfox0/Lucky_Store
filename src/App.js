@@ -1,4 +1,3 @@
-// src/App.js
 import React, { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
@@ -7,12 +6,12 @@ import { db } from "./firebase";
 // Components
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AdminPanel from "./components/AdminPanel";
 
 // Pages
 import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
-import AdminPanel from "./components/AdminPanel";
 
 // Cart Context
 import { CartProvider, useCart } from "./CartContext";
@@ -34,7 +33,7 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // القائمة الجديدة للأدمن
+  // قائمة الأدمنز
   const admins = [
     "owner@email.com",
     "admin2@email.com",
@@ -76,7 +75,7 @@ function AppWithCart() {
   return (
     <>
       <Navbar
-        ownerEmail={currentUserEmail}  // الآن يعرض نفس البريد
+        ownerEmail={currentUserEmail}
         currentUserEmail={currentUserEmail}
         storeSettings={storeSettings}
         searchTerm={searchTerm}
