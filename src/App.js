@@ -20,7 +20,7 @@ import { CartProvider, useCart } from "./CartContext";
 import "./styles/main.css";
 
 function AppWithCart() {
-  const { cart } = useCart();
+  const { cart } = useCart(); 
   const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   const [storeSettings, setStoreSettings] = useState({
@@ -33,37 +33,42 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // قائمة الأدمن
-  const admins = ["owner@email.com", "admin2@email.com"];
+  // قائمة الأدمن يمكن إضافة أي عدد من البريد الإلكتروني
+  const admins = [
+    "owner@email.com",
+    "admin2@email.com",
+    "admin3@email.com"
+  ];
 
-  // البريد الحالي للمستخدم (يمكن ربطه مع تسجيل دخول حقيقي لاحقاً)
+  // البريد الحالي للمستخدم (يمكن ربطه لاحقاً بتسجيل الدخول)
   const currentUserEmail = "owner@email.com";
 
-  // تحقق من صلاحية الأدمن
+  // تحقق إذا كان المستخدم أدمن
   const isAdmin = admins.includes(currentUserEmail);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // جلب إعدادات المتجر
         const settingsSnap = await getDocs(collection(db, "settings"));
         settingsSnap.forEach((doc) => setStoreSettings(doc.data()));
 
-        // جلب المنتجات
         const productsSnap = await getDocs(collection(db, "products"));
         const loadedProducts = [];
         const loadedSections = new Set();
+
         productsSnap.forEach((doc) => {
           const product = { id: doc.id, ...doc.data() };
           loadedProducts.push(product);
           if (product.section) loadedSections.add(product.section);
         });
+
         setProducts(loadedProducts);
         setSections([...loadedSections]);
       } catch (err) {
         console.error("❌ خطأ في تحميل البيانات:", err);
       }
     };
+
     fetchData();
   }, []);
 
