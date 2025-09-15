@@ -15,6 +15,7 @@ const Navbar = ({
 
   return (
     <header className="site-header">
+      {/* TOP ROW */}
       <div className="header-top">
         <div className="header-left">
           <nav className="nav-links">
@@ -24,6 +25,7 @@ const Navbar = ({
           </nav>
         </div>
 
+        {/* شعار المتجر في المنتصف */}
         <div className="header-center">
           {storeSettings.logo ? (
             <img className="site-logo" src={storeSettings.logo} alt="logo" />
@@ -48,6 +50,7 @@ const Navbar = ({
         </div>
       </div>
 
+      {/* BOTTOM ROW */}
       <div className="header-bottom">
         <div className="search-wrapper">
           <input
