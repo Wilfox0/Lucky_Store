@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useCart } from "../CartContext";
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const shippingRates = {
   "القاهرة": 30,
@@ -14,6 +14,7 @@ const shippingRates = {
 
 function Checkout() {
   const { cart, removeFromCart, clearCart, updateQuantity } = useCart();
+
   const [customer, setCustomer] = useState({
     name: "",
     phone: "",
@@ -26,11 +27,15 @@ function Checkout() {
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleQuantityChange = (id, delta, color, size) => {
-    const item = cart.find((i) => i.id === id && i.selectedColor === color && i.selectedSize === size);
+  const handleQuantityChange = (id, delta, selectedColor, selectedSize) => {
+    const item = cart.find((i) =>
+      i.id === id &&
+      i.selectedColor === selectedColor &&
+      i.selectedSize === selectedSize
+    );
     if (!item) return;
     const newQty = Math.max((item.quantity || 1) + delta, 1);
-    updateQuantity(id, color, size, newQty);
+    updateQuantity(id, selectedColor, selectedSize, newQty);
   };
 
   const shippingCost = shippingRates[customer.governorate] || 0;
@@ -46,23 +51,18 @@ function Checkout() {
       return;
     }
     try {
-      const orderData = {
+      await addDoc(collection(db, "orders"), {
         customer,
         cart,
         shippingPrice: shippingCost,
         total: totalWithShipping,
-        createdAt: new Date()
-      };
-      await addDoc(collection(db, "orders"), orderData);
-
-      // إشعار Gmail (باستخدام خدمة emailjs أو أي خدمة إرسال بريد)
-      // مثال: emailjs.send("service_id","template_id", orderData, "user_id");
-
-      alert("تم ارسال الطلب بنجاح!");
+        createdAt: serverTimestamp()
+      });
+      alert("تم إرسال الطلب بنجاح!");
       clearCart();
     } catch (err) {
-      console.error("❌ خطأ في حفظ الطلب:", err);
-      alert("حدث خطأ أثناء إرسال الطلب");
+      console.error("❌ خطأ في إرسال الطلب:", err);
+      alert("حدث خطأ، حاول مرة أخرى");
     }
   };
 
@@ -73,7 +73,11 @@ function Checkout() {
         <p style={{ textAlign: "center" }}>السلة فارغة</p>
       ) : (
         <>
-          <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%", marginBottom: "20px", textAlign: "center" }}>
+          <table
+            border="1"
+            cellPadding="8"
+            style={{ borderCollapse: "collapse", width: "100%", marginBottom: "20px", textAlign: "center" }}
+          >
             <thead style={{ backgroundColor: "#f2f2f2" }}>
               <tr>
                 <th>المنتج</th>
@@ -87,7 +91,7 @@ function Checkout() {
             </thead>
             <tbody>
               {cart.map((item) => (
-                <tr key={`${item.id}-${item.selectedColor}-${item.selectedSize}`}>
+                <tr key={item.id + item.selectedColor + item.selectedSize}>
                   <td>{item.name}</td>
                   <td>{item.price} جنيه</td>
                   <td>
@@ -127,8 +131,13 @@ function Checkout() {
             <p><strong>الإجمالي الكلي: {totalWithShipping} جنيه</strong></p>
           </div>
 
-          <button onClick={handlePlaceOrder} style={{ padding: "10px 20px", backgroundColor: "#ff69b4", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>تأكيد الطلب</button>
-          <button onClick={clearCart} style={{ padding: "10px 20px", backgroundColor: "#f44336", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", marginLeft: "10px" }}>تفريغ السلة</button>
+          <button onClick={handlePlaceOrder} style={{ padding: "10px 20px", backgroundColor: "#4CAF50", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}>
+            تأكيد الطلب
+          </button>
+
+          <button onClick={clearCart} style={{ padding: "10px 20px", backgroundColor: "#f44336", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", marginLeft: "10px" }}>
+            تفريغ السلة
+          </button>
         </>
       )}
     </div>
