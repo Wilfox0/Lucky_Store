@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useCart } from '../CartContext';
 
 const ProductCard = ({ product, addToCart }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
