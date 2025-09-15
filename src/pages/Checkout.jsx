@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useCart } from "../CartContext";
 import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 
 const shippingRates = {
   "القاهرة": 30,
@@ -14,7 +14,6 @@ const shippingRates = {
 
 function Checkout() {
   const { cart, removeFromCart, clearCart, updateQuantity } = useCart();
-
   const [customer, setCustomer] = useState({
     name: "",
     phone: "",
@@ -27,11 +26,11 @@ function Checkout() {
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleQuantityChange = (id, delta, selectedColor, selectedSize) => {
-    const item = cart.find((i) => i.id === id && i.selectedColor === selectedColor && i.selectedSize === selectedSize);
+  const handleQuantityChange = (id, delta, color, size) => {
+    const item = cart.find((i) => i.id === id && i.selectedColor === color && i.selectedSize === size);
     if (!item) return;
     const newQty = Math.max((item.quantity || 1) + delta, 1);
-    updateQuantity(id, selectedColor, selectedSize, newQty);
+    updateQuantity(id, color, size, newQty);
   };
 
   const shippingCost = shippingRates[customer.governorate] || 0;
@@ -41,26 +40,29 @@ function Checkout() {
   );
   const totalWithShipping = cartTotal + shippingCost;
 
-  const handleOrderSubmit = async () => {
+  const handlePlaceOrder = async () => {
     if (!customer.name || !customer.phone || !customer.address) {
-      alert("يرجى تعبئة جميع بيانات العميل");
+      alert("يرجى ملء جميع بيانات العميل");
       return;
     }
-    const orderData = {
-      customer,
-      cart,
-      shippingPrice: shippingCost,
-      total: totalWithShipping,
-      createdAt: serverTimestamp()
-    };
     try {
+      const orderData = {
+        customer,
+        cart,
+        shippingPrice: shippingCost,
+        total: totalWithShipping,
+        createdAt: new Date()
+      };
       await addDoc(collection(db, "orders"), orderData);
-      alert("تم تقديم الطلب بنجاح!");
+
+      // إشعار Gmail (باستخدام خدمة emailjs أو أي خدمة إرسال بريد)
+      // مثال: emailjs.send("service_id","template_id", orderData, "user_id");
+
+      alert("تم ارسال الطلب بنجاح!");
       clearCart();
-      // يمكن هنا إضافة كود لإرسال إشعار بالبريد
     } catch (err) {
       console.error("❌ خطأ في حفظ الطلب:", err);
-      alert("حدث خطأ أثناء تقديم الطلب.");
+      alert("حدث خطأ أثناء إرسال الطلب");
     }
   };
 
@@ -85,7 +87,7 @@ function Checkout() {
             </thead>
             <tbody>
               {cart.map((item) => (
-                <tr key={item.id + item.selectedColor + item.selectedSize}>
+                <tr key={`${item.id}-${item.selectedColor}-${item.selectedSize}`}>
                   <td>{item.name}</td>
                   <td>{item.price} جنيه</td>
                   <td>
@@ -106,24 +108,27 @@ function Checkout() {
 
           <div style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc", borderRadius: "8px" }}>
             <h3 style={{ marginBottom: "15px" }}>بيانات العميل</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <input type="text" name="name" placeholder="الاسم" value={customer.name} onChange={handleInputChange} />
-              <input type="text" name="phone" placeholder="الهاتف" value={customer.phone} onChange={handleInputChange} />
-              <input type="text" name="address" placeholder="العنوان" value={customer.address} onChange={handleInputChange} />
-              <select name="governorate" value={customer.governorate} onChange={handleInputChange}>
-                {Object.keys(shippingRates).map((gov) => <option key={gov} value={gov}>{gov}</option>)}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "400px" }}>
+              <input type="text" name="name" placeholder="الاسم" value={customer.name} onChange={handleInputChange} style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }} />
+              <input type="text" name="phone" placeholder="رقم الهاتف" value={customer.phone} onChange={handleInputChange} style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }} />
+              <input type="text" name="address" placeholder="العنوان" value={customer.address} onChange={handleInputChange} style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }} />
+              <select name="governorate" value={customer.governorate} onChange={handleInputChange} style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}>
+                {Object.keys(shippingRates).map((gov) => (
+                  <option key={gov} value={gov}>{gov}</option>
+                ))}
               </select>
             </div>
           </div>
 
-          <div style={{ textAlign: "right", fontWeight: "bold", marginBottom: "20px" }}>
+          <div style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc", borderRadius: "8px" }}>
+            <h3>ملخص الطلب</h3>
+            <p>إجمالي المنتجات: {cartTotal} جنيه</p>
             <p>سعر الشحن: {shippingCost} جنيه</p>
-            <p>الإجمالي: {totalWithShipping} جنيه</p>
+            <p><strong>الإجمالي الكلي: {totalWithShipping} جنيه</strong></p>
           </div>
 
-          <button onClick={handleOrderSubmit} style={{ background: "#ff69b4", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "5px", cursor: "pointer" }}>
-            تأكيد الطلب
-          </button>
+          <button onClick={handlePlaceOrder} style={{ padding: "10px 20px", backgroundColor: "#ff69b4", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>تأكيد الطلب</button>
+          <button onClick={clearCart} style={{ padding: "10px 20px", backgroundColor: "#f44336", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", marginLeft: "10px" }}>تفريغ السلة</button>
         </>
       )}
     </div>
