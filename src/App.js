@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 import AdminPanel from "./components/AdminPanel";
+import AdminLogin from "./components/AdminLogin";
 
 // Cart Context
 import { CartProvider, useCart } from "./CartContext";
@@ -33,14 +34,10 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // قائمة الأدمنز
-  const admins = [
-    "owner@email.com",
-    "admin2@email.com",
-    "admin3@email.com"
-  ];
+  // قائمة الأدمن يمكن إضافة أكثر من بريد
+  const admins = ["owner@email.com", "admin2@email.com"];
 
-  // البريد الحالي للمستخدم
+  // المستخدم الحالي (يمكن ربطه بتسجيل الدخول لاحقاً)
   const currentUserEmail = "owner@email.com";
 
   // تحقق إذا كان المستخدم أدمن
@@ -91,12 +88,10 @@ function AppWithCart() {
             element={<Home products={products} searchTerm={searchTerm} />}
           />
           <Route path="/checkout" element={<Checkout />} />
-          <Route path="/orders" element={<Orders />} />
+          <Route path="/orders" element={isAdmin ? <Orders /> : <p>🚫 غير مصرح بالدخول</p>} />
           <Route
             path="/admin"
-            element={
-              isAdmin ? <AdminPanel /> : <p>🚫 غير مصرح بالدخول</p>
-            }
+            element={isAdmin ? <AdminPanel /> : <AdminLogin />}
           />
         </Routes>
       </main>
