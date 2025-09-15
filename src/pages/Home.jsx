@@ -1,47 +1,9 @@
-import React, { useState } from 'react';
-import ProductCard from '../components/ProductCard';
-import { useCart } from '../CartContext';
+import React from "react";
+import ProductCard from "../components/ProductCard";
+import { useCart } from "../CartContext";
 
-const Home = () => {
+const Home = ({ products, searchTerm }) => {
   const { addToCart } = useCart();
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sections] = useState(['ملابس داخلية', 'أكسسوارات', 'أطقم']);
-  const [products] = useState([
-    {
-      id: '1',
-      name: 'سروال داخلي وردي',
-      price: 120,
-      rating: 4,
-      images: ['https://i.ibb.co/2dK5xgX/pink-underwear.jpg'],
-      colors: ['وردي', 'أحمر', 'أسود'],
-      sizes: ['S', 'M', 'L'],
-      section: 'ملابس داخلية',
-      quantities: { 'وردي-S': 5, 'أحمر-M': 3 }
-    },
-    {
-      id: '2',
-      name: 'صدرية جميلة',
-      price: 200,
-      rating: 5,
-      images: ['https://i.ibb.co/3FfQZjB/bra.jpg'],
-      colors: ['أبيض', 'أسود'],
-      sizes: ['S', 'M', 'L', 'XL'],
-      section: 'ملابس داخلية',
-      quantities: { 'أبيض-M': 4, 'أسود-L': 2 }
-    },
-    {
-      id: '3',
-      name: 'طقم داخلي فانتازي',
-      price: 300,
-      rating: 5,
-      images: ['https://i.ibb.co/2W9GxKq/fantasy-set.jpg'],
-      colors: ['أحمر', 'أسود'],
-      sizes: ['M', 'L'],
-      section: 'ملابس داخلية',
-      quantities: { 'أحمر-M': 2, 'أسود-L': 1 }
-    }
-  ]);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
