@@ -1,9 +1,11 @@
-import React from "react";
-import ProductCard from "../components/ProductCard";
-import { useCart } from "../CartContext";
+import React, { useState } from 'react';
+import ProductCard from '../components/ProductCard';
+import { useCart } from '../CartContext';
 
 const Home = ({ products, searchTerm }) => {
   const { addToCart } = useCart();
+
+  const [sections] = useState(['ملابس داخلية', 'أكسسوارات', 'أطقم']);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
