@@ -33,14 +33,14 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // قائمة الأدمن يمكن إضافة أي عدد من البريد الإلكتروني
+  // قائمة الأدمنز
   const admins = [
     "owner@email.com",
     "admin2@email.com",
     "admin3@email.com"
   ];
 
-  // البريد الحالي للمستخدم (يمكن ربطه لاحقاً بتسجيل الدخول)
+  // البريد الحالي للمستخدم
   const currentUserEmail = "owner@email.com";
 
   // تحقق إذا كان المستخدم أدمن
@@ -94,7 +94,9 @@ function AppWithCart() {
           <Route path="/orders" element={<Orders />} />
           <Route
             path="/admin"
-            element={isAdmin ? <AdminPanel /> : <p>🚫 غير مصرح بالدخول</p>}
+            element={
+              isAdmin ? <AdminPanel /> : <p>🚫 غير مصرح بالدخول</p>
+            }
           />
         </Routes>
       </main>
