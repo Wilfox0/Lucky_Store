@@ -5,6 +5,7 @@ export const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
+  // إضافة منتج للسلة مع التعامل مع اللون والمقاس
   const addToCart = (product, selectedColor, selectedSize) => {
     setCart((prev) => {
       const existing = prev.find(
@@ -26,14 +27,24 @@ export function CartProvider({ children }) {
     });
   };
 
-  const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+  // إزالة منتج من السلة بناءً على id والخيارات
+  const removeFromCart = (id, selectedColor, selectedSize) => {
+    setCart((prev) =>
+      prev.filter(
+        (item) =>
+          !(item.id === id &&
+            item.selectedColor === selectedColor &&
+            item.selectedSize === selectedSize)
+      )
+    );
   };
 
+  // تفريغ السلة بالكامل
   const clearCart = () => {
     setCart([]);
   };
 
+  // تعديل كمية منتج محدد
   const updateQuantity = (id, selectedColor, selectedSize, newQty) => {
     if (newQty < 1) return;
     setCart((prev) =>
