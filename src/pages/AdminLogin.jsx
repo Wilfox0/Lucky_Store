@@ -1,19 +1,20 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const AdminLogin = ({ admins, setCurrentUserEmail }) => {
+const AdminLogin = ({ admins, setCurrentAdmin }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const adminPassword = "123456"; // كلمة مرور عامة للأدمن
+  const adminPassword = "123456"; // يمكن تغييره لكل أدمن لاحقاً
 
   const handleLogin = (e) => {
     e.preventDefault();
     if (admins.includes(email) && password === adminPassword) {
-      setCurrentUserEmail(email);
+      setCurrentAdmin(email);
       localStorage.setItem("isAdmin", "true");
+      localStorage.setItem("adminEmail", email);
       navigate("/admin");
     } else {
       setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
