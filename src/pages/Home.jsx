@@ -4,12 +4,11 @@ import { useCart } from '../CartContext';
 
 const Home = ({ products, searchTerm }) => {
   const { addToCart } = useCart();
-
-  const [sections] = useState(['ملابس داخلية', 'أكسسوارات', 'أطقم']);
+  const [localSearch, setLocalSearch] = useState(searchTerm || '');
 
   const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.section.toLowerCase().includes(searchTerm.toLowerCase())
+    product.name.toLowerCase().includes(localSearch.toLowerCase()) ||
+    product.section.toLowerCase().includes(localSearch.toLowerCase())
   );
 
   return (
