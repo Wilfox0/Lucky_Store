@@ -33,17 +33,13 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // قائمة الأدمنز
-  const admins = [
-    "owner@email.com",
-    "admin2@email.com",
-    "admin3@email.com"
-  ];
+  // قائمة الأدمن
+  const admins = ["owner@email.com", "admin2@email.com"];
 
-  // البريد الحالي للمستخدم (يمكن ربطه مع تسجيل الدخول لاحقاً)
+  // البريد الحالي للمستخدم (يمكن ربطه مع تسجيل دخول حقيقي لاحقاً)
   const currentUserEmail = "owner@email.com";
 
-  // تحقق إذا كان المستخدم أدمن
+  // تحقق من صلاحية الأدمن
   const isAdmin = admins.includes(currentUserEmail);
 
   useEffect(() => {
@@ -57,20 +53,17 @@ function AppWithCart() {
         const productsSnap = await getDocs(collection(db, "products"));
         const loadedProducts = [];
         const loadedSections = new Set();
-
         productsSnap.forEach((doc) => {
           const product = { id: doc.id, ...doc.data() };
           loadedProducts.push(product);
           if (product.section) loadedSections.add(product.section);
         });
-
         setProducts(loadedProducts);
         setSections([...loadedSections]);
       } catch (err) {
         console.error("❌ خطأ في تحميل البيانات:", err);
       }
     };
-
     fetchData();
   }, []);
 
@@ -96,9 +89,7 @@ function AppWithCart() {
           <Route path="/orders" element={<Orders />} />
           <Route
             path="/admin"
-            element={
-              isAdmin ? <AdminPanel /> : <p>🚫 غير مصرح بالدخول</p>
-            }
+            element={isAdmin ? <AdminPanel /> : <p>🚫 غير مصرح بالدخول</p>}
           />
         </Routes>
       </main>
