@@ -1,6 +1,7 @@
-// src/pages/Checkout.jsx
 import React, { useState } from "react";
 import { useCart } from "../CartContext";
+import { db } from "../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const shippingRates = {
   "القاهرة": 30,
@@ -26,11 +27,11 @@ function Checkout() {
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleQuantityChange = (id, delta) => {
-    const item = cart.find((i) => i.id === id);
+  const handleQuantityChange = (id, delta, selectedColor, selectedSize) => {
+    const item = cart.find((i) => i.id === id && i.selectedColor === selectedColor && i.selectedSize === selectedSize);
     if (!item) return;
-    const newQty = Math.max((item.quantity || 1) + delta, 1); // لا تقل عن 1
-    updateQuantity(id, newQty);
+    const newQty = Math.max((item.quantity || 1) + delta, 1);
+    updateQuantity(id, selectedColor, selectedSize, newQty);
   };
 
   const shippingCost = shippingRates[customer.governorate] || 0;
@@ -40,6 +41,29 @@ function Checkout() {
   );
   const totalWithShipping = cartTotal + shippingCost;
 
+  const handleOrderSubmit = async () => {
+    if (!customer.name || !customer.phone || !customer.address) {
+      alert("يرجى تعبئة جميع بيانات العميل");
+      return;
+    }
+    const orderData = {
+      customer,
+      cart,
+      shippingPrice: shippingCost,
+      total: totalWithShipping,
+      createdAt: serverTimestamp()
+    };
+    try {
+      await addDoc(collection(db, "orders"), orderData);
+      alert("تم تقديم الطلب بنجاح!");
+      clearCart();
+      // يمكن هنا إضافة كود لإرسال إشعار بالبريد
+    } catch (err) {
+      console.error("❌ خطأ في حفظ الطلب:", err);
+      alert("حدث خطأ أثناء تقديم الطلب.");
+    }
+  };
+
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
       <h2 style={{ textAlign: "center", marginBottom: "20px" }}>سلة المشتريات</h2>
@@ -47,16 +71,7 @@ function Checkout() {
         <p style={{ textAlign: "center" }}>السلة فارغة</p>
       ) : (
         <>
-          <table
-            border="1"
-            cellPadding="8"
-            style={{
-              borderCollapse: "collapse",
-              width: "100%",
-              marginBottom: "20px",
-              textAlign: "center"
-            }}
-          >
+          <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%", marginBottom: "20px", textAlign: "center" }}>
             <thead style={{ backgroundColor: "#f2f2f2" }}>
               <tr>
                 <th>المنتج</th>
@@ -70,19 +85,19 @@ function Checkout() {
             </thead>
             <tbody>
               {cart.map((item) => (
-                <tr key={item.id}>
+                <tr key={item.id + item.selectedColor + item.selectedSize}>
                   <td>{item.name}</td>
                   <td>{item.price} جنيه</td>
                   <td>
-                    <button onClick={() => handleQuantityChange(item.id, -1)}>-</button>
+                    <button onClick={() => handleQuantityChange(item.id, -1, item.selectedColor, item.selectedSize)}>-</button>
                     <span style={{ margin: "0 8px" }}>{item.quantity || 1}</span>
-                    <button onClick={() => handleQuantityChange(item.id, 1)}>+</button>
+                    <button onClick={() => handleQuantityChange(item.id, 1, item.selectedColor, item.selectedSize)}>+</button>
                   </td>
                   <td>{item.selectedColor || "-"}</td>
                   <td>{item.selectedSize || "-"}</td>
                   <td>{(item.price * (item.quantity || 1)).toFixed(2)} جنيه</td>
                   <td>
-                    <button onClick={() => removeFromCart(item.id)}>حذف</button>
+                    <button onClick={() => removeFromCart(item.id, item.selectedColor, item.selectedSize)}>حذف</button>
                   </td>
                 </tr>
               ))}
@@ -91,95 +106,23 @@ function Checkout() {
 
           <div style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc", borderRadius: "8px" }}>
             <h3 style={{ marginBottom: "15px" }}>بيانات العميل</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "400px" }}>
-              <input
-                type="text"
-                name="name"
-                placeholder="الاسم"
-                value={customer.name}
-                onChange={handleInputChange}
-                style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
-              />
-              <input
-                type="text"
-                name="phone"
-                placeholder="رقم الهاتف"
-                value={customer.phone}
-                onChange={handleInputChange}
-                style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
-              />
-              <input
-                type="text"
-                name="address"
-                placeholder="العنوان"
-                value={customer.address}
-                onChange={handleInputChange}
-                style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
-              />
-              <select
-                name="governorate"
-                value={customer.governorate}
-                onChange={handleInputChange}
-                style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
-              >
-                {Object.keys(shippingRates).map((gov) => (
-                  <option key={gov} value={gov}>{gov}</option>
-                ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <input type="text" name="name" placeholder="الاسم" value={customer.name} onChange={handleInputChange} />
+              <input type="text" name="phone" placeholder="الهاتف" value={customer.phone} onChange={handleInputChange} />
+              <input type="text" name="address" placeholder="العنوان" value={customer.address} onChange={handleInputChange} />
+              <select name="governorate" value={customer.governorate} onChange={handleInputChange}>
+                {Object.keys(shippingRates).map((gov) => <option key={gov} value={gov}>{gov}</option>)}
               </select>
             </div>
           </div>
 
-          <div style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <h3>ملخص الطلب</h3>
-            <p>إجمالي المنتجات: {cartTotal} جنيه</p>
+          <div style={{ textAlign: "right", fontWeight: "bold", marginBottom: "20px" }}>
             <p>سعر الشحن: {shippingCost} جنيه</p>
-            <p><strong>الإجمالي الكلي: {totalWithShipping} جنيه</strong></p>
+            <p>الإجمالي: {totalWithShipping} جنيه</p>
           </div>
 
-          <div style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <h3>فاتورة تفصيلية لكل منتج</h3>
-            <table
-              border="1"
-              cellPadding="8"
-              style={{ borderCollapse: "collapse", width: "100%", textAlign: "center" }}
-            >
-              <thead style={{ backgroundColor: "#f9f9f9" }}>
-                <tr>
-                  <th>المنتج</th>
-                  <th>السعر</th>
-                  <th>الكمية</th>
-                  <th>اللون</th>
-                  <th>المقاس</th>
-                  <th>الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td>{item.price} جنيه</td>
-                    <td>{item.quantity || 1}</td>
-                    <td>{item.selectedColor || "-"}</td>
-                    <td>{item.selectedSize || "-"}</td>
-                    <td>{(item.price * (item.quantity || 1)).toFixed(2)} جنيه</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <button
-            onClick={clearCart}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#f44336",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer"
-            }}
-          >
-            تفريغ السلة
+          <button onClick={handleOrderSubmit} style={{ background: "#ff69b4", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "5px", cursor: "pointer" }}>
+            تأكيد الطلب
           </button>
         </>
       )}
