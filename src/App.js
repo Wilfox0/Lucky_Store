@@ -6,12 +6,12 @@ import { db } from "./firebase";
 // Components
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import AdminPanel from "./components/AdminPanel";
 
 // Pages
 import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
+import AdminPanel from "./components/AdminPanel";
 
 // Cart Context
 import { CartProvider, useCart } from "./CartContext";
@@ -20,7 +20,7 @@ import { CartProvider, useCart } from "./CartContext";
 import "./styles/main.css";
 
 function AppWithCart() {
-  const { cart } = useCart(); 
+  const { cart } = useCart();
   const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   const [storeSettings, setStoreSettings] = useState({
@@ -49,9 +49,11 @@ function AppWithCart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // جلب إعدادات المتجر
         const settingsSnap = await getDocs(collection(db, "settings"));
         settingsSnap.forEach((doc) => setStoreSettings(doc.data()));
 
+        // جلب المنتجات
         const productsSnap = await getDocs(collection(db, "products"));
         const loadedProducts = [];
         const loadedSections = new Set();
