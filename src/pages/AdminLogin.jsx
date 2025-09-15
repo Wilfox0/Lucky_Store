@@ -1,19 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const AdminLogin = () => {
+const AdminLogin = ({ admins, setCurrentUserEmail }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Hardcoded admin credentials
-  const adminEmail = "admin@store.com";
-  const adminPassword = "123456";
+  const adminPassword = "123456"; // كلمة مرور عامة للأدمن
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (email === adminEmail && password === adminPassword) {
+    if (admins.includes(email) && password === adminPassword) {
+      setCurrentUserEmail(email);
       localStorage.setItem("isAdmin", "true");
       navigate("/admin");
     } else {
@@ -25,20 +24,8 @@ const AdminLogin = () => {
     <div className="admin-login">
       <h2>تسجيل دخول الأدمن</h2>
       <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="البريد الإلكتروني"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="كلمة المرور"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} required />
         <button type="submit">دخول</button>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </form>
