@@ -30,18 +30,14 @@ export function CartProvider({ children }) {
     setCart((prev) =>
       prev.filter(
         (item) =>
-          !(
-            item.id === id &&
+          !(item.id === id &&
             item.selectedColor === selectedColor &&
-            item.selectedSize === selectedSize
-          )
+            item.selectedSize === selectedSize)
       )
     );
   };
 
-  const clearCart = () => {
-    setCart([]);
-  };
+  const clearCart = () => setCart([]);
 
   const updateQuantity = (id, selectedColor, selectedSize, newQty) => {
     if (newQty < 1) return;
