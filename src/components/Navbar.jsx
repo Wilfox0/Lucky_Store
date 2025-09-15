@@ -1,35 +1,75 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React from 'react';
+import { Link } from 'react-router-dom';
 
-const Navbar = ({ storeSettings, searchTerm, setSearchTerm, sections, cartCount }) => {
+const Navbar = ({
+  cartCount = 0,
+  ownerEmail,
+  currentUserEmail,
+  storeSettings = {},
+  searchTerm = '',
+  setSearchTerm = () => {},
+  sections = [],
+  onSelectSection = null
+}) => {
+  const isOwner = ownerEmail === currentUserEmail;
+
   return (
     <header className="site-header">
+      {/* TOP ROW */}
       <div className="header-top">
-        <Link to="/">
+        <div className="header-left">
+          <nav className="nav-links">
+            <Link className="nav-link" to="/">الرئيسية</Link>
+            <Link className="nav-link" to="/checkout">السلة ({cartCount})</Link>
+            {isOwner && <Link className="nav-link" to="/admin">لوحة التحكم</Link>}
+          </nav>
+        </div>
+
+        <div className="header-center">
           {storeSettings.logo ? (
-            <img src={storeSettings.logo} alt={storeSettings.storeName} className="site-logo" />
+            <img className="site-logo" src={storeSettings.logo} alt="logo" />
           ) : (
-            <span className="site-title">{storeSettings.storeName}</span>
+            <div className="site-logo-placeholder">متجري</div>
           )}
-        </Link>
-        <div className="nav-links">
-          <Link to="/">الرئيسية</Link>
-          <Link to="/checkout">السلة ({cartCount})</Link>
-          <Link to="/orders">الطلبات</Link>
-          <Link to="/admin">لوحة التحكم</Link>
+        </div>
+
+        <div className="header-right">
+          <Link className="site-title" to="/">{storeSettings.storeName || 'متجري'}</Link>
+          <div className="social-links">
+            {storeSettings.socialLinks?.whatsapp && (
+              <a href={storeSettings.socialLinks.whatsapp} target="_blank" rel="noreferrer" className="social-link">WhatsApp</a>
+            )}
+            {storeSettings.socialLinks?.instagram && (
+              <a href={storeSettings.socialLinks.instagram} target="_blank" rel="noreferrer" className="social-link">Instagram</a>
+            )}
+            {storeSettings.socialLinks?.facebook && (
+              <a href={storeSettings.socialLinks.facebook} target="_blank" rel="noreferrer" className="social-link">Facebook</a>
+            )}
+          </div>
         </div>
       </div>
+
       <div className="header-bottom">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="ابحث عن المنتجات..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <div className="sections-wrapper">
-          {sections.map((section) => (
-            <div key={section} className="section-chip">{section}</div>
+        <div className="search-wrapper">
+          <input
+            className="search-input"
+            type="text"
+            placeholder="ابحث عن منتج أو قسم..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="sections-wrapper" aria-label="sections">
+          {sections.map((s) => (
+            <button
+              key={s}
+              className="section-chip"
+              onClick={() => onSelectSection ? onSelectSection(s) : null}
+              title={`عرض قسم ${s}`}
+            >
+              {s}
+            </button>
           ))}
         </div>
       </div>
