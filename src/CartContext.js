@@ -5,7 +5,7 @@ export const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
-  // إضافة منتج للسلة مع التعامل مع اللون والمقاس
+  // إضافة منتج للسلة
   const addToCart = (product, selectedColor, selectedSize) => {
     setCart((prev) => {
       const existing = prev.find(
@@ -27,7 +27,7 @@ export function CartProvider({ children }) {
     });
   };
 
-  // إزالة منتج من السلة بناءً على id والخيارات
+  // حذف منتج من السلة
   const removeFromCart = (id, selectedColor, selectedSize) => {
     setCart((prev) =>
       prev.filter(
@@ -44,7 +44,7 @@ export function CartProvider({ children }) {
     setCart([]);
   };
 
-  // تعديل كمية منتج محدد
+  // تحديث الكمية لمنتج محدد
   const updateQuantity = (id, selectedColor, selectedSize, newQty) => {
     if (newQty < 1) return;
     setCart((prev) =>
