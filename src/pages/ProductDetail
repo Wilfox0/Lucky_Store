@@ -2,109 +2,95 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { useCart } from "../CartContext";
 
-const ProductDetail = () => {
-  const { id } = useParams();
+const ProductDetail = ({ addToCart }) => {
+  const { productId } = useParams();
   const [product, setProduct] = useState(null);
-  const [selectedImage, setSelectedImage] = useState("");
-  const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
-  const { addToCart } = useCart();
+  const [selectedSize, setSelectedSize] = useState("");
 
   useEffect(() => {
     const fetchProduct = async () => {
-      const docRef = doc(db, "products", id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setProduct(data);
-        setSelectedImage(data.images[0]);
-        setSelectedSize(data.sizes[0] || "");
-        setSelectedColor(data.colors[0] || "");
+      try {
+        const productRef = doc(db, "products", productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const data = productSnap.data();
+          setProduct({ id: productSnap.id, ...data });
+          setSelectedColor(data.colors[0] || "");
+          setSelectedSize(data.sizes[0] || "");
+        }
+      } catch (err) {
+        console.error("❌ خطأ في تحميل المنتج:", err);
       }
     };
     fetchProduct();
-  }, [id]);
+  }, [productId]);
 
-  if (!product) return <p style={{ padding: "20px" }}>جاري تحميل المنتج...</p>;
+  if (!product) return <p>جارٍ تحميل المنتج...</p>;
 
-  const handleAddToCart = () => {
-    if (!selectedSize || !selectedColor) {
+  const remainingQuantity = product.quantities?.[`${selectedColor}-${selectedSize}`] || 0;
+
+  const handleAdd = () => {
+    if (!selectedColor || !selectedSize) {
       alert("يرجى اختيار اللون والمقاس");
       return;
     }
+    if (remainingQuantity === 0) return;
     addToCart(product, selectedColor, selectedSize);
     alert("تم إضافة المنتج إلى السلة");
   };
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif", display: "flex", flexWrap: "wrap", gap: "20px" }}>
-      {/* صور المنتج */}
+    <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "20px" }}>
       <div style={{ flex: "1 1 300px" }}>
-        <img src={selectedImage} alt={product.name} style={{ width: "100%", borderRadius: "10px", marginBottom: "10px" }} />
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {product.images.map((img, idx) => (
-            <img
-              key={idx}
-              src={img}
-              alt={`thumb-${idx}`}
-              style={{
-                width: "60px",
-                height: "60px",
-                borderRadius: "5px",
-                border: selectedImage === img ? "2px solid #c71585" : "1px solid #ccc",
-                cursor: "pointer",
-                objectFit: "cover"
-              }}
-              onClick={() => setSelectedImage(img)}
-            />
-          ))}
-        </div>
+        {product.images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt={`${product.name} ${idx + 1}`}
+            style={{ width: "100%", marginBottom: "10px", borderRadius: "10px" }}
+            loading="lazy"
+          />
+        ))}
       </div>
 
-      {/* تفاصيل المنتج */}
-      <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <h2 style={{ color: "#c71585" }}>{product.name}</h2>
-        <p style={{ fontSize: "20px", fontWeight: "bold", color: "#ff1493" }}>السعر: {product.price} جنيه</p>
-        <p>{product.description}</p>
+      <div style={{ flex: "1 1 300px" }}>
+        <h2>{product.name}</h2>
+        <p><strong>السعر:</strong> {product.price} جنيه</p>
+        <p><strong>الكميه المتبقيه:</strong> {remainingQuantity}</p>
+        <p><strong>التقييم:</strong> {'⭐'.repeat(product.rating || 0)}</p>
+        {product.description && (
+          <p><strong>الوصف:</strong> {product.description}</p>
+        )}
 
-        {/* الألوان */}
-        <div>
+        <div style={{ marginTop: "10px" }}>
           <label>اللون: </label>
           <select value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)}>
-            {product.colors.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
+            {product.colors.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
-        {/* المقاسات */}
-        <div>
+        <div style={{ marginTop: "10px" }}>
           <label>المقاس: </label>
           <select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)}>
-            {product.sizes.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
+            {product.sizes.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
 
-        <p>الكمية المتبقية: {product.quantities[`${selectedColor}-${selectedSize}`] || 0}</p>
-        <p>التقييم: {'⭐'.repeat(product.rating)}</p>
-
         <button
-          onClick={handleAddToCart}
+          onClick={handleAdd}
+          disabled={remainingQuantity === 0}
           style={{
-            marginTop: "10px",
-            padding: "10px 15px",
+            marginTop: "15px",
+            padding: "8px 15px",
             borderRadius: "5px",
-            backgroundColor: "#c71585",
+            backgroundColor: remainingQuantity === 0 ? "#ccc" : "#c71585",
             color: "#fff",
-            fontSize: "16px",
-            cursor: "pointer"
+            cursor: remainingQuantity === 0 ? "not-allowed" : "pointer"
           }}
         >
-          أضف إلى السلة
+          {remainingQuantity === 0 ? "انتهى" : "أضف إلى السلة"}
         </button>
       </div>
     </div>
