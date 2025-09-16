@@ -9,6 +9,7 @@ const Navbar = ({
   searchTerm = '',
   setSearchTerm = () => {},
   sections = [],
+  activeSection = '',
   onSelectSection = null
 }) => {
   const isOwner = ownerEmail === currentUserEmail;
@@ -63,7 +64,7 @@ const Navbar = ({
           {sections.map((s) => (
             <button
               key={s}
-              className="section-chip"
+              className={`section-chip ${activeSection === s ? 'active-section' : ''}`}
               onClick={() => onSelectSection ? onSelectSection(s) : null}
               title={`عرض قسم ${s}`}
             >
