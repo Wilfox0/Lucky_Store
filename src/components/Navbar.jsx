@@ -1,71 +1,74 @@
-// src/components/Navbar.jsx
-import React from "react";
-import { Link } from "react-router-dom";
+import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Navbar = ({
+  cartCount = 0,
   ownerEmail,
   currentUserEmail,
-  storeSettings,
-  searchTerm,
-  setSearchTerm,
-  sections,
-  cartCount,
+  storeSettings = {},
+  searchTerm = '',
+  setSearchTerm = () => {},
+  sections = [],
+  onSelectSection = null
 }) => {
+  const isOwner = ownerEmail === currentUserEmail;
+
   return (
     <header className="site-header">
-      {/* الصف العلوي */}
       <div className="header-top">
-        <div className="logo-area" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {storeSettings.logo && (
-            <img src={storeSettings.logo} alt="Logo" className="site-logo" />
-          )}
-          <span className="site-title">{storeSettings.storeName}</span>
+        <div className="header-left">
+          <nav className="nav-links">
+            <Link className="nav-link" to="/">الرئيسية</Link>
+            <Link className="nav-link" to="/checkout">السلة ({cartCount})</Link>
+            {isOwner && <Link className="nav-link" to="/admin">لوحة التحكم</Link>}
+          </nav>
         </div>
 
-        <nav className="nav-links">
-          <Link to="/" className="nav-link">الرئيسية</Link>
-          <Link to="/checkout" className="nav-link">السلة ({cartCount})</Link>
-          <Link to="/orders" className="nav-link">الطلبات</Link>
-          {currentUserEmail === ownerEmail && (
-            <Link to="/admin" className="nav-link">لوحة التحكم</Link>
+        <div className="header-center">
+          {storeSettings.logo ? (
+            <img className="site-logo" src={storeSettings.logo} alt="logo" />
+          ) : (
+            <div className="site-logo-placeholder">متجري</div>
           )}
-        </nav>
+        </div>
 
-        {/* روابط السوشيال */}
-        <div className="social-links-navbar">
-          {storeSettings.socialLinks?.whatsapp && (
-            <a href={storeSettings.socialLinks.whatsapp} target="_blank" rel="noreferrer">
-              <i className="fab fa-whatsapp"></i>
-            </a>
-          )}
-          {storeSettings.socialLinks?.instagram && (
-            <a href={storeSettings.socialLinks.instagram} target="_blank" rel="noreferrer">
-              <i className="fab fa-instagram"></i>
-            </a>
-          )}
-          {storeSettings.socialLinks?.facebook && (
-            <a href={storeSettings.socialLinks.facebook} target="_blank" rel="noreferrer">
-              <i className="fab fa-facebook-f"></i>
-            </a>
-          )}
+        <div className="header-right">
+          <Link className="site-title" to="/">{storeSettings.storeName || 'متجري'}</Link>
+          <div className="social-links">
+            {storeSettings.socialLinks?.whatsapp && (
+              <a href={storeSettings.socialLinks.whatsapp} target="_blank" rel="noreferrer" className="social-link">WhatsApp</a>
+            )}
+            {storeSettings.socialLinks?.instagram && (
+              <a href={storeSettings.socialLinks.instagram} target="_blank" rel="noreferrer" className="social-link">Instagram</a>
+            )}
+            {storeSettings.socialLinks?.facebook && (
+              <a href={storeSettings.socialLinks.facebook} target="_blank" rel="noreferrer" className="social-link">Facebook</a>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* الصف السفلي */}
       <div className="header-bottom">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="ابحث عن منتج..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        <div className="search-wrapper">
+          <input
+            className="search-input"
+            type="text"
+            placeholder="ابحث عن منتج أو قسم..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-        <div className="sections-wrapper">
-          {sections.map((section) => (
-            <span key={section} className="section-chip">
-              {section}
-            </span>
+        <div className="sections-wrapper" aria-label="sections">
+          {sections.map((s) => (
+            <button
+              key={s}
+              className="section-chip"
+              onClick={() => onSelectSection ? onSelectSection(s) : null}
+              title={`عرض قسم ${s}`}
+            >
+              {s}
+            </button>
           ))}
         </div>
       </div>
