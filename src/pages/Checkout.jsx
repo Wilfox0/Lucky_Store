@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useCart } from "../CartContext";
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const shippingRates = {
   "القاهرة": 30,
@@ -21,9 +21,7 @@ function Checkout() {
     address: "",
     governorate: "القاهرة"
   });
-
-  const [confirming, setConfirming] = useState(false);
-  const [invoiceSent, setInvoiceSent] = useState(false);
+  const [confirmInvoice, setConfirmInvoice] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -33,7 +31,7 @@ function Checkout() {
   const handleQuantityChange = (id, delta) => {
     const item = cart.find((i) => i.id === id);
     if (!item) return;
-    const newQty = Math.max((item.quantity || 1) + delta, 1); // لا تقل عن 1
+    const newQty = Math.max((item.quantity || 1) + delta, 1);
     updateQuantity(id, item.selectedColor, item.selectedSize, newQty);
   };
 
@@ -44,41 +42,24 @@ function Checkout() {
   );
   const totalWithShipping = cartTotal + shippingCost;
 
-  // -------------------------------
-  // إرسال فاتورة للعميلة قبل التأكيد
-  // -------------------------------
-  const sendInvoice = () => {
+  const handleConfirmOrder = async () => {
     if (cart.length === 0) return alert("السلة فارغة");
-    setConfirming(true);
-    setInvoiceSent(true);
-    alert(`تم إرسال الفاتورة التفصيلية إلى العميل ${customer.name}`);
-  };
-
-  // -------------------------------
-  // تأكيد الطلب وحفظه في Firestore
-  // -------------------------------
-  const confirmOrder = async () => {
-    if (!customer.name || !customer.phone || !customer.address) {
-      return alert("الرجاء تعبئة بيانات العميل بالكامل");
-    }
-
     try {
       const orderData = {
         customer,
         cart,
         shippingPrice: shippingCost,
         total: totalWithShipping,
-        createdAt: new Date()
+        timestamp: serverTimestamp()
       };
+      const docRef = await addDoc(collection(db, "orders"), orderData);
 
-      await addDoc(collection(db, "orders"), orderData);
-      alert("تم تأكيد الطلب وحفظه بنجاح!");
+      alert(`تم تأكيد الطلب بنجاح، رقم الطلب: ${docRef.id}`);
       clearCart();
-      setConfirming(false);
-      setInvoiceSent(false);
+      setConfirmInvoice(false);
     } catch (err) {
-      console.error("❌ خطأ في حفظ الطلب:", err);
-      alert("حدث خطأ أثناء حفظ الطلب");
+      console.error("خطأ في حفظ الأوردر:", err);
+      alert("حدث خطأ أثناء حفظ الطلب.");
     }
   };
 
@@ -178,10 +159,25 @@ function Checkout() {
             <p><strong>الإجمالي الكلي: {totalWithShipping} جنيه</strong></p>
           </div>
 
-          {confirming && invoiceSent && (
-            <div style={{ marginBottom: "30px", padding: "15px", border: "2px dashed #c71585", borderRadius: "8px" }}>
-              <h3>فاتورة تفصيلية قبل التأكيد</h3>
-              <table border="1" cellPadding="8" style={{ width: "100%", textAlign: "center", borderCollapse: "collapse" }}>
+          <button
+            onClick={() => setConfirmInvoice(true)}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#4CAF50",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              marginRight: "10px"
+            }}
+          >
+            إنشاء فاتورة تفصيلية
+          </button>
+
+          {confirmInvoice && (
+            <div style={{ padding: "15px", border: "1px solid #aaa", borderRadius: "8px", marginTop: "20px" }}>
+              <h3>فاتورة تفصيلية</h3>
+              <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%", textAlign: "center" }}>
                 <thead style={{ backgroundColor: "#f9f9f9" }}>
                   <tr>
                     <th>المنتج</th>
@@ -205,31 +201,24 @@ function Checkout() {
                   ))}
                 </tbody>
               </table>
-              <p><strong>الإجمالي الكلي مع الشحن: {totalWithShipping} جنيه</strong></p>
+
               <button
-                onClick={confirmOrder}
-                style={{ padding: "10px 20px", backgroundColor: "#4CAF50", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}
+                onClick={handleConfirmOrder}
+                style={{
+                  marginTop: "15px",
+                  padding: "10px 20px",
+                  backgroundColor: "#2196F3",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "5px",
+                  cursor: "pointer"
+                }}
               >
                 تأكيد الطلب
               </button>
             </div>
           )}
 
-          {!invoiceSent && (
-            <button
-              onClick={sendInvoice}
-              style={{ padding: "10px 20px", backgroundColor: "#2196F3", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}
-            >
-              إرسال الفاتورة قبل التأكيد
-            </button>
-          )}
-
-          <button
-            onClick={clearCart}
-            style={{ padding: "10px 20px", backgroundColor: "#f44336", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", marginLeft: "10px" }}
-          >
-            تفريغ السلة
-          </button>
         </>
       )}
     </div>
