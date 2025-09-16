@@ -1,17 +1,18 @@
-// src/components/ProductCard.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 const ProductCard = ({ product, addToCart }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || '');
-  const navigate = useNavigate();
+
+  const remainingQuantity = product.quantities[`${selectedColor}-${selectedSize}`] || 0;
 
   const handleAdd = () => {
     if (!selectedSize || !selectedColor) {
       alert('يرجى اختيار اللون والمقاس');
       return;
     }
+    if (remainingQuantity === 0) return;
     addToCart(product, selectedColor, selectedSize);
     alert('تم إضافة المنتج إلى السلة');
   };
@@ -27,21 +28,18 @@ const ProductCard = ({ product, addToCart }) => {
       boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
       transition: 'transform 0.2s'
     }}>
-      <img
-        src={product.images[0]}
-        alt={product.name}
-        style={{ width: '100%', borderRadius: '10px', cursor: 'pointer' }}
-        onClick={() => navigate(`/product/${product.id}`)} // ✅ اضغط على الصورة للذهاب لتفاصيل المنتج
-      />
-      <h3
-        style={{ cursor: 'pointer' }}
-        onClick={() => navigate(`/product/${product.id}`)} // ✅ اضغط على الاسم للذهاب لتفاصيل المنتج
-      >
-        {product.name}
-      </h3>
+      <Link to={`/product/${product.id}`}>
+        <img
+          src={product.images[0]}
+          alt={product.name}
+          style={{ width: '100%', borderRadius: '10px' }}
+          loading="lazy"
+        />
+      </Link>
+      <h3>{product.name}</h3>
       <p>السعر: {product.price} جنيه</p>
-      <p>الكميه المتبقيه: {product.quantities[`${product.colors[0]}-${product.sizes[0]}`] || 0}</p>
-      <p>التقييم: {'⭐'.repeat(product.rating)}</p>
+      <p>الكميه المتبقيه: {remainingQuantity}</p>
+      <p>التقييم: {'⭐'.repeat(product.rating || 0)}</p>
 
       <div>
         <label>اللون:</label>
@@ -57,8 +55,19 @@ const ProductCard = ({ product, addToCart }) => {
         </select>
       </div>
 
-      <button onClick={handleAdd} style={{ marginTop: '10px', padding: '5px 10px', borderRadius: '5px', backgroundColor: '#c71585', color: '#fff' }}>
-        أضف إلى السلة
+      <button
+        onClick={handleAdd}
+        style={{
+          marginTop: '10px',
+          padding: '5px 10px',
+          borderRadius: '5px',
+          backgroundColor: remainingQuantity === 0 ? '#ccc' : '#c71585',
+          color: '#fff',
+          cursor: remainingQuantity === 0 ? 'not-allowed' : 'pointer'
+        }}
+        disabled={remainingQuantity === 0}
+      >
+        {remainingQuantity === 0 ? 'انتهى' : 'أضف إلى السلة'}
       </button>
     </div>
   );
