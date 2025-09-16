@@ -1,3 +1,4 @@
+// src/App.js
 import React, { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
@@ -12,7 +13,7 @@ import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 import AdminPanel from "./components/AdminPanel";
-import AdminLogin from "./components/AdminLogin";
+import AdminLogin from "./pages/AdminLogin";
 
 // Cart Context
 import { CartProvider, useCart } from "./CartContext";
@@ -20,8 +21,9 @@ import { CartProvider, useCart } from "./CartContext";
 // Styles
 import "./styles/main.css";
 
+// Wrapper لتوصيل cartCount والأقسام والروابط للـ Navbar و Footer
 function AppWithCart() {
-  const { cart } = useCart(); 
+  const { cart } = useCart(); // ناخد السلة من الـ Context
   const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   const [storeSettings, setStoreSettings] = useState({
@@ -34,14 +36,7 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // قائمة الأدمن يمكن إضافة أكثر من بريد
-  const admins = ["owner@email.com", "admin2@email.com"];
-
-  // المستخدم الحالي (يمكن ربطه بتسجيل الدخول لاحقاً)
-  const currentUserEmail = "owner@email.com";
-
-  // تحقق إذا كان المستخدم أدمن
-  const isAdmin = admins.includes(currentUserEmail);
+  const [adminEmail, setAdminEmail] = useState(null); // تسجيل دخول الأدمن
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,8 +67,8 @@ function AppWithCart() {
   return (
     <>
       <Navbar
-        ownerEmail={currentUserEmail}
-        currentUserEmail={currentUserEmail}
+        ownerEmail={adminEmail}
+        currentUserEmail={adminEmail}
         storeSettings={storeSettings}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -88,10 +83,16 @@ function AppWithCart() {
             element={<Home products={products} searchTerm={searchTerm} />}
           />
           <Route path="/checkout" element={<Checkout />} />
-          <Route path="/orders" element={isAdmin ? <Orders /> : <p>🚫 غير مصرح بالدخول</p>} />
+          <Route path="/orders" element={<Orders />} />
           <Route
             path="/admin"
-            element={isAdmin ? <AdminPanel /> : <AdminLogin />}
+            element={
+              adminEmail ? (
+                <AdminPanel />
+              ) : (
+                <AdminLogin onLogin={setAdminEmail} />
+              )
+            }
           />
         </Routes>
       </main>
@@ -104,6 +105,7 @@ function AppWithCart() {
   );
 }
 
+// ملف App الرئيسي يلف CartProvider
 function App() {
   return (
     <CartProvider>
