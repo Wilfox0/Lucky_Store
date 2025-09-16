@@ -1,38 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+// src/pages/Orders.jsx
+import React from "react";
 
-const Orders = () => {
-  const [orders, setOrders] = useState([]);
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'orders'));
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setOrders(data);
-      } catch (err) {
-        console.error("❌ خطأ في تحميل الطلبات:", err);
-      }
-    };
-    fetchOrders();
-  }, []);
+const Orders = ({ orders }) => {
+  if (!orders || orders.length === 0) {
+    return <h2 className="no-orders">لا توجد طلبات بعد</h2>;
+  }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>جميع الطلبات</h2>
-      {orders.length === 0 && <p>لا توجد طلبات حتى الآن</p>}
-      {orders.map(order => (
-        <div key={order.id} style={{ border: '1px solid #ddd', marginBottom: '10px', padding: '10px', borderRadius: '5px' }}>
-          <p><strong>الاسم:</strong> {order.customer.name}</p>
-          <p><strong>الهاتف:</strong> {order.customer.phone}</p>
-          <p><strong>المحافظة:</strong> {order.customer.governorate}</p>
-          <p><strong>العنوان:</strong> {order.customer.address}</p>
-          <p><strong>عدد المنتجات:</strong> {order.cart.length}</p>
-          <p><strong>سعر الشحن:</strong> {order.shippingPrice}</p>
-          <p><strong>الإجمالي:</strong> {order.total}</p>
-        </div>
-      ))}
+    <div className="orders">
+      <h2>الطلبات السابقة</h2>
+      <table className="orders-table">
+        <thead>
+          <tr>
+            <th>العميل</th>
+            <th>الهاتف</th>
+            <th>العنوان</th>
+            <th>الإجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order, idx) => (
+            <tr key={idx}>
+              <td>{order.name}</td>
+              <td>{order.phone}</td>
+              <td>{order.address}</td>
+              <td>{order.total} ج.م</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
