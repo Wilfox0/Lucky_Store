@@ -1,3 +1,4 @@
+// src/pages/AdminLogin.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -22,11 +23,23 @@ const AdminLogin = ({ admins, setCurrentAdmin }) => {
   };
 
   return (
-    <div className="admin-login">
+    <div className="admin-login" style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
       <h2>تسجيل دخول الأدمن</h2>
-      <form onSubmit={handleLogin}>
-        <input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "300px" }}>
+        <input
+          type="email"
+          placeholder="البريد الإلكتروني"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="كلمة المرور"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
         <button type="submit">دخول</button>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </form>
