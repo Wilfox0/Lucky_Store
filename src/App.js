@@ -1,127 +1,100 @@
-import React, { useEffect, useState } from "react";
-import { Routes, Route } from "react-router-dom";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "./firebase";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
-// Components
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-
-// Pages
-import Home from "./pages/Home";
-import Checkout from "./pages/Checkout";
-import Orders from "./pages/Orders";
-import AdminPanel from "./components/AdminPanel";
-import AdminLogin from "./pages/AdminLogin"; // صفحة تسجيل دخول الأدمن
-import ProductDetail from "./pages/ProductDetail"; // ✅ صفحة تفاصيل المنتج الجديدة
-
-// Cart Context
-import { CartProvider, useCart } from "./CartContext";
-
-// Styles
-import "./styles/main.css";
-
-// Wrapper لتوصيل cartCount والأقسام والروابط للـ Navbar و Footer
-function AppWithCart() {
-  const { cart } = useCart(); 
-  const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-  const [storeSettings, setStoreSettings] = useState({
-    storeName: "متجري",
-    logo: "",
-    socialLinks: {},
-  });
-
-  const [products, setProducts] = useState([]);
-  const [sections, setSections] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // قائمة البريد الإلكتروني للأدمنات
-  const admins = ["owner@email.com", "admin2@email.com"];
-  const [currentAdmin, setCurrentAdmin] = useState(localStorage.getItem("adminEmail") || "");
+const ProductDetail = ({ addToCart }) => {
+  const { productId } = useParams();
+  const [product, setProduct] = useState(null);
+  const [selectedColor, setSelectedColor] = useState("");
+  const [selectedSize, setSelectedSize] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchProduct = async () => {
       try {
-        // إعدادات المتجر
-        const settingsSnap = await getDocs(collection(db, "settings"));
-        settingsSnap.forEach((doc) => setStoreSettings(doc.data()));
-
-        // المنتجات والأقسام
-        const productsSnap = await getDocs(collection(db, "products"));
-        const loadedProducts = [];
-        const loadedSections = new Set();
-
-        productsSnap.forEach((doc) => {
-          const product = { id: doc.id, ...doc.data() };
-          loadedProducts.push(product);
-          if (product.section) loadedSections.add(product.section);
-        });
-
-        setProducts(loadedProducts);
-        setSections([...loadedSections]);
+        const productRef = doc(db, "products", productId);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const data = productSnap.data();
+          setProduct({ id: productSnap.id, ...data });
+          setSelectedColor(data.colors[0] || "");
+          setSelectedSize(data.sizes[0] || "");
+        }
       } catch (err) {
-        console.error("❌ خطأ في تحميل البيانات:", err);
+        console.error("❌ خطأ في تحميل المنتج:", err);
       }
     };
+    fetchProduct();
+  }, [productId]);
 
-    fetchData();
-  }, []);
+  if (!product) return <p>جارٍ تحميل المنتج...</p>;
+
+  const remainingQuantity = product.quantities?.[`${selectedColor}-${selectedSize}`] || 0;
+
+  const handleAdd = () => {
+    if (!selectedColor || !selectedSize) {
+      alert("يرجى اختيار اللون والمقاس");
+      return;
+    }
+    if (remainingQuantity === 0) return;
+    addToCart(product, selectedColor, selectedSize);
+    alert("تم إضافة المنتج إلى السلة");
+  };
 
   return (
-    <>
-      <Navbar
-        ownerEmail={admins[0]}         
-        currentUserEmail={currentAdmin}
-        storeSettings={storeSettings}   
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        sections={sections}             
-        cartCount={cartCount}           
-      />
-
-      <main>
-        <Routes>
-          <Route
-            path="/"
-            element={<Home products={products} searchTerm={searchTerm} />}
+    <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "20px" }}>
+      <div style={{ flex: "1 1 300px" }}>
+        {product.images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt={`${product.name} ${idx + 1}`}
+            style={{ width: "100%", marginBottom: "10px", borderRadius: "10px" }}
+            loading="lazy"
           />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route
-            path="/admin"
-            element={
-              currentAdmin && admins.includes(currentAdmin) ? (
-                <AdminPanel ownerEmails={admins} currentUserEmail={currentAdmin} />
-              ) : (
-                <AdminLogin admins={admins} setCurrentAdmin={setCurrentAdmin} />
-              )
-            }
-          />
+        ))}
+      </div>
 
-          {/* ✅ إضافة صفحة ProductDetail مع تمرير بيانات المنتجات */}
-          <Route
-            path="/product/:id"
-            element={<ProductDetail />}
-          />
-        </Routes>
-      </main>
+      <div style={{ flex: "1 1 300px" }}>
+        <h2>{product.name}</h2>
+        <p><strong>السعر:</strong> {product.price} جنيه</p>
+        <p><strong>الكميه المتبقيه:</strong> {remainingQuantity}</p>
+        <p><strong>التقييم:</strong> {'⭐'.repeat(product.rating || 0)}</p>
+        {product.description && (
+          <p><strong>الوصف:</strong> {product.description}</p>
+        )}
 
-      <Footer
-        socialLinks={storeSettings.socialLinks} 
-        storeName={storeSettings.storeName}     
-      />
-    </>
+        <div style={{ marginTop: "10px" }}>
+          <label>اللون: </label>
+          <select value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)}>
+            {product.colors.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        <div style={{ marginTop: "10px" }}>
+          <label>المقاس: </label>
+          <select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)}>
+            {product.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+
+        <button
+          onClick={handleAdd}
+          disabled={remainingQuantity === 0}
+          style={{
+            marginTop: "15px",
+            padding: "8px 15px",
+            borderRadius: "5px",
+            backgroundColor: remainingQuantity === 0 ? "#ccc" : "#c71585",
+            color: "#fff",
+            cursor: remainingQuantity === 0 ? "not-allowed" : "pointer"
+          }}
+        >
+          {remainingQuantity === 0 ? "انتهى" : "أضف إلى السلة"}
+        </button>
+      </div>
+    </div>
   );
-}
+};
 
-// ملف App الرئيسي يلف CartProvider
-function App() {
-  return (
-    <CartProvider>
-      <AppWithCart />
-    </CartProvider>
-  );
-}
-
-export default App;
+export default ProductDetail;
