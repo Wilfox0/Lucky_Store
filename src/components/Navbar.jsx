@@ -9,7 +9,6 @@ const Navbar = ({
   searchTerm = '',
   setSearchTerm = () => {},
   sections = [],
-  activeSection = '',
   onSelectSection = null
 }) => {
   const isOwner = ownerEmail === currentUserEmail;
@@ -61,10 +60,17 @@ const Navbar = ({
         </div>
 
         <div className="sections-wrapper" aria-label="sections">
+          <button
+            className="section-chip"
+            onClick={() => onSelectSection ? onSelectSection('all') : null}
+            title="عرض جميع المنتجات"
+          >
+            جميع المنتجات
+          </button>
           {sections.map((s) => (
             <button
               key={s}
-              className={`section-chip ${activeSection === s ? 'active-section' : ''}`}
+              className="section-chip"
               onClick={() => onSelectSection ? onSelectSection(s) : null}
               title={`عرض قسم ${s}`}
             >
