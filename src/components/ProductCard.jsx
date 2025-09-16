@@ -1,8 +1,11 @@
+// src/components/ProductCard.jsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const ProductCard = ({ product, addToCart }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || '');
+  const navigate = useNavigate();
 
   const handleAdd = () => {
     if (!selectedSize || !selectedColor) {
@@ -24,8 +27,18 @@ const ProductCard = ({ product, addToCart }) => {
       boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
       transition: 'transform 0.2s'
     }}>
-      <img src={product.images[0]} alt={product.name} style={{ width: '100%', borderRadius: '10px' }} />
-      <h3>{product.name}</h3>
+      <img
+        src={product.images[0]}
+        alt={product.name}
+        style={{ width: '100%', borderRadius: '10px', cursor: 'pointer' }}
+        onClick={() => navigate(`/product/${product.id}`)} // ✅ اضغط على الصورة للذهاب لتفاصيل المنتج
+      />
+      <h3
+        style={{ cursor: 'pointer' }}
+        onClick={() => navigate(`/product/${product.id}`)} // ✅ اضغط على الاسم للذهاب لتفاصيل المنتج
+      >
+        {product.name}
+      </h3>
       <p>السعر: {product.price} جنيه</p>
       <p>الكميه المتبقيه: {product.quantities[`${product.colors[0]}-${product.sizes[0]}`] || 0}</p>
       <p>التقييم: {'⭐'.repeat(product.rating)}</p>
