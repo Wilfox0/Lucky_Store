@@ -1,66 +1,41 @@
-// src/pages/Orders.jsx
-import React, { useEffect, useState } from 'react';
-import { db } from '../firebase';
-import { collection, getDocs, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+// src/components/Orders.jsx
+import React, { useEffect, useState } from "react";
+import { db } from "../firebase";
+import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    // الاستماع لأي تغييرات في مجموعة الأوردرات مباشرة (Realtime)
-    const unsubscribe = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(data);
-    });
+    const fetchOrders = async () => {
+      const ordersSnap = await getDocs(collection(db, "orders"));
+      setOrders(ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
 
-    return () => unsubscribe();
+    fetchOrders();
   }, []);
 
-  const handleDeleteOrder = async (id) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا الطلب؟")) return;
-    try {
-      await deleteDoc(doc(db, 'orders', id));
-      alert("تم حذف الطلب بنجاح");
-    } catch (err) {
-      console.error("خطأ في حذف الطلب:", err);
-      alert("حدث خطأ أثناء حذف الطلب");
-    }
+  const markAsShipped = async (orderId) => {
+    const orderRef = doc(db, "orders", orderId);
+    await updateDoc(orderRef, { status: "تم الشحن" });
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "تم الشحن" } : o));
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>جميع الطلبات</h2>
-      {orders.length === 0 && <p>لا توجد طلبات بعد</p>}
+    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+      <h2>الطلبات</h2>
+      {orders.length === 0 && <p>لا توجد طلبات حالياً</p>}
       {orders.map(order => (
-        <div key={order.id} style={{ border: '1px solid #ddd', marginBottom: '10px', padding: '10px', borderRadius: '5px' }}>
-          <p><strong>الاسم:</strong> {order.customer.name}</p>
+        <div key={order.id} style={{ border: "1px solid #ccc", padding: "10px", marginBottom: "10px", borderRadius: "8px" }}>
+          <p><strong>العميل:</strong> {order.customer.name}</p>
           <p><strong>الهاتف:</strong> {order.customer.phone}</p>
-          <p><strong>المحافظة:</strong> {order.customer.governorate}</p>
           <p><strong>العنوان:</strong> {order.customer.address}</p>
           <p><strong>عدد المنتجات:</strong> {order.cart.length}</p>
-          <p><strong>سعر الشحن:</strong> {order.shippingPrice}</p>
-          <p><strong>الإجمالي:</strong> {order.total}</p>
-          <p><strong>المنتجات:</strong></p>
-          <ul>
-            {order.cart.map(item => (
-              <li key={item.id}>
-                {item.name} - {item.quantity || 1} قطعة - {item.selectedColor || '-'} - {item.selectedSize || '-'}
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={() => handleDeleteOrder(order.id)}
-            style={{
-              padding: "8px 15px",
-              backgroundColor: "#f44336",
-              color: "white",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer"
-            }}
-          >
-            حذف الطلب
-          </button>
+          <p><strong>الإجمالي:</strong> {order.total} جنيه</p>
+          <p><strong>حالة الطلب:</strong> {order.status || "قيد الانتظار"}</p>
+          {order.status !== "تم الشحن" && (
+            <button onClick={() => markAsShipped(order.id)}>تحديد كتم الشحن</button>
+          )}
         </div>
       ))}
     </div>
