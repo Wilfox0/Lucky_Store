@@ -7,13 +7,12 @@ import { db } from "./firebase";
 // Components
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import AdminPanel from "./components/AdminPanel";
 
 // Pages
 import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
-import AdminPanel from "./components/AdminPanel";
-import AdminLogin from "./pages/AdminLogin";
 
 // Cart Context
 import { CartProvider, useCart } from "./CartContext";
@@ -21,9 +20,9 @@ import { CartProvider, useCart } from "./CartContext";
 // Styles
 import "./styles/main.css";
 
-// Wrapper لتوصيل cartCount والأقسام والروابط للـ Navbar و Footer
+// Wrapper لتوصيل cartCount + بيانات المتجر
 function AppWithCart() {
-  const { cart } = useCart(); // ناخد السلة من الـ Context
+  const { cart } = useCart();
   const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   const [storeSettings, setStoreSettings] = useState({
@@ -36,14 +35,18 @@ function AppWithCart() {
   const [sections, setSections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [adminEmail, setAdminEmail] = useState(null); // تسجيل دخول الأدمن
+  // السماح بأكثر من أدمن
+  const ownerEmails = ["owner@email.com", "admin2@email.com"];
+  const currentUserEmail = "owner@email.com"; // مؤقتًا
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // تحميل إعدادات المتجر
         const settingsSnap = await getDocs(collection(db, "settings"));
         settingsSnap.forEach((doc) => setStoreSettings(doc.data()));
 
+        // تحميل المنتجات + الأقسام
         const productsSnap = await getDocs(collection(db, "products"));
         const loadedProducts = [];
         const loadedSections = new Set();
@@ -67,8 +70,8 @@ function AppWithCart() {
   return (
     <>
       <Navbar
-        ownerEmail={adminEmail}
-        currentUserEmail={adminEmail}
+        ownerEmails={ownerEmails}
+        currentUserEmail={currentUserEmail}
         storeSettings={storeSettings}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -87,10 +90,10 @@ function AppWithCart() {
           <Route
             path="/admin"
             element={
-              adminEmail ? (
+              ownerEmails.includes(currentUserEmail) ? (
                 <AdminPanel />
               ) : (
-                <AdminLogin onLogin={setAdminEmail} />
+                <p>🚫 غير مصرح بالدخول</p>
               )
             }
           />
@@ -105,7 +108,7 @@ function AppWithCart() {
   );
 }
 
-// ملف App الرئيسي يلف CartProvider
+// ملف App الرئيسي
 function App() {
   return (
     <CartProvider>
