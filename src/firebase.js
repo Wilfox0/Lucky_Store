@@ -4,12 +4,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDFEQYcYRC_A_Lpe4iSlzbe9NNEwxqpBQI",
+  authDomain: "lacky-store.firebaseapp.com",
+  projectId: "lacky-store",
+  storageBucket: "lacky-store.appspot.com",
+  messagingSenderId: "715637340163",
+  appId: "1:715637340163:web:5c54c5494bddec1f9c3636"
 };
 
 const app = initializeApp(firebaseConfig);
