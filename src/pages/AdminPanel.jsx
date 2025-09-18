@@ -1,21 +1,10 @@
 // src/pages/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
-import { db, storage } from '../firebase';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  deleteDoc
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '../supabaseClient';
 
-// 👇 أدخل هنا كل الإيميلات والباسوردات للأدمنز المسموح لهم
 const ADMINS = [
-  { email: 'admin1@example.com', password: 'pass1' },
+  { email: 'admin1@example.com', password: '123456' },
   { email: 'admin2@example.com', password: 'pass2' },
-  // أضف المزيد إذا أردت
 ];
 
 const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
@@ -37,6 +26,7 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     colors: [],
     sizes: [],
     quantities: {},
+    totalQuantity: 0,
     section: ''
   });
 
@@ -45,7 +35,6 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
   const [newCost, setNewCost] = useState(0);
 
   useEffect(() => {
-    // ✅ تحقق من البريد + الباس
     const match = ADMINS.find(
       a => a.email === currentUserEmail && a.password === currentUserPassword
     );
@@ -53,24 +42,34 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
 
     const fetchData = async () => {
       try {
-        const prodSnap = await getDocs(collection(db, 'products'));
-        setProducts(prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // جلب المنتجات
+        let { data: prodData, error: prodError } = await supabase.from('products').select('*');
+        if (prodError) console.error(prodError);
+        else setProducts(prodData || []);
 
-        const secSnap = await getDocs(collection(db, 'sections'));
-        setSections(secSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // جلب الأقسام
+        let { data: secData, error: secError } = await supabase.from('sections').select('*');
+        if (secError) console.error(secError);
+        else setSections(secData || []);
 
-        const shipSnap = await getDocs(collection(db, 'shipping'));
-        setShipping(shipSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // جلب الشحن
+        let { data: shipData, error: shipError } = await supabase.from('shipping').select('*');
+        if (shipError) console.error(shipError);
+        else setShipping(shipData || []);
 
-        const ordersSnap = await getDocs(collection(db, 'orders'));
-        setOrders(ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // جلب الطلبات
+        let { data: ordersData, error: ordersError } = await supabase.from('orders').select('*');
+        if (ordersError) console.error(ordersError);
+        else setOrders(ordersData || []);
 
-        const settingsSnap = await getDocs(collection(db, 'settings'));
-        if (!settingsSnap.empty) {
-          const settingsData = settingsSnap.docs[0].data();
-          setStoreName(settingsData.storeName || '');
-          setLogo(settingsData.logo || null);
-          setSocialLinks(settingsData.socialLinks || { whatsapp: '', instagram: '', facebook: '' });
+        // جلب إعدادات المتجر
+        let { data: settingsData, error: settingsError } = await supabase.from('settings').select('*').limit(1);
+        if (settingsError) console.error(settingsError);
+        else if (settingsData && settingsData.length > 0) {
+          const settings = settingsData[0];
+          setStoreName(settings.storeName || '');
+          setLogo(settings.logo || null);
+          setSocialLinks(settings.socialLinks || { whatsapp: '', instagram: '', facebook: '' });
         }
       } catch (err) {
         console.error(err);
@@ -80,30 +79,30 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     fetchData();
   }, [currentUserEmail, currentUserPassword]);
 
-  if (!isAdmin) return <p>🚫 ليس لديك صلاحية الدخول للوحة التحكم</p>;
+  if (!isAdmin) return <p style={{ color: '#ff0000', fontWeight: 'bold' }}>🚫 ليس لديك صلاحية الدخول للوحة التحكم</p>;
 
-  // -------- باقي الكود كما هو بدون أي تغيير --------
+  // -------- وظائف الشعار + اسم المتجر + روابط الاجتماعية --------
   const handleLogoUpload = e => {
     if (e.target.files[0]) setLogo(e.target.files[0]);
   };
 
   const handleSaveStoreSettingsOnly = async () => {
     try {
-      const settingsRef = collection(db, 'settings');
-      const snapshot = await getDocs(settingsRef);
-
       let logoUrl = logo;
       if (logo instanceof File) {
-        const storageRef = ref(storage, `logo/${logo.name}`);
-        await uploadBytes(storageRef, logo);
-        logoUrl = await getDownloadURL(storageRef);
+        const { data, error } = await supabase.storage.from('logo').upload(`logo/${logo.name}`, logo, { upsert: true });
+        if (error) throw error;
+        const { publicUrl } = supabase.storage.from('logo').getPublicUrl(`logo/${logo.name}`);
+        logoUrl = publicUrl;
       }
 
-      if (!snapshot.empty) {
-        const docRef = doc(db, 'settings', snapshot.docs[0].id);
-        await updateDoc(docRef, { storeName, logo: logoUrl });
+      const { data: existingSettings, error } = await supabase.from('settings').select('*').limit(1);
+      if (error) throw error;
+
+      if (existingSettings && existingSettings.length > 0) {
+        await supabase.from('settings').update({ storeName, logo: logoUrl }).eq('id', existingSettings[0].id);
       } else {
-        await addDoc(settingsRef, { storeName, logo: logoUrl });
+        await supabase.from('settings').insert([{ storeName, logo: logoUrl }]);
       }
 
       alert('تم حفظ اسم المتجر والشعار فقط');
@@ -115,21 +114,21 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
 
   const handleSaveAllSettings = async () => {
     try {
-      const settingsRef = collection(db, 'settings');
-      const snapshot = await getDocs(settingsRef);
-
       let logoUrl = logo;
       if (logo instanceof File) {
-        const storageRef = ref(storage, `logo/${logo.name}`);
-        await uploadBytes(storageRef, logo);
-        logoUrl = await getDownloadURL(storageRef);
+        const { data, error } = await supabase.storage.from('logo').upload(`logo/${logo.name}`, logo, { upsert: true });
+        if (error) throw error;
+        const { publicUrl } = supabase.storage.from('logo').getPublicUrl(`logo/${logo.name}`);
+        logoUrl = publicUrl;
       }
 
-      if (!snapshot.empty) {
-        const docRef = doc(db, 'settings', snapshot.docs[0].id);
-        await updateDoc(docRef, { storeName, logo: logoUrl, socialLinks });
+      const { data: existingSettings, error } = await supabase.from('settings').select('*').limit(1);
+      if (error) throw error;
+
+      if (existingSettings && existingSettings.length > 0) {
+        await supabase.from('settings').update({ storeName, logo: logoUrl, socialLinks }).eq('id', existingSettings[0].id);
       } else {
-        await addDoc(settingsRef, { storeName, logo: logoUrl, socialLinks });
+        await supabase.from('settings').insert([{ storeName, logo: logoUrl, socialLinks }]);
       }
 
       alert('تم حفظ جميع إعدادات المتجر');
@@ -139,11 +138,13 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     }
   };
 
+  // -------- الأقسام --------
   const handleAddSection = async () => {
     if (!newSectionName) return;
     try {
-      const docRef = await addDoc(collection(db, 'sections'), { name: newSectionName });
-      setSections(prev => [...prev, { id: docRef.id, name: newSectionName }]);
+      const { data, error } = await supabase.from('sections').insert([{ name: newSectionName }]);
+      if (error) throw error;
+      setSections(prev => [...prev, { id: data[0].id, name: newSectionName }]);
       setNewSectionName('');
     } catch (err) {
       console.error(err);
@@ -153,7 +154,8 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
 
   const handleDeleteSection = async id => {
     try {
-      await deleteDoc(doc(db, 'sections', id));
+      const { error } = await supabase.from('sections').delete().eq('id', id);
+      if (error) throw error;
       setSections(prev => prev.filter(s => s.id !== id));
     } catch (err) {
       console.error(err);
@@ -161,6 +163,7 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     }
   };
 
+  // -------- المنتجات --------
   const handleProductImagesUpload = e => {
     setNewProduct(prev => ({ ...prev, images: Array.from(e.target.files) }));
   };
@@ -171,16 +174,26 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     try {
       const imageUrls = [];
       for (let file of newProduct.images) {
-        const storageRef = ref(storage, `products/${file.name}`);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        imageUrls.push(url);
+        const { data, error } = await supabase.storage.from('products').upload(`products/${file.name}`, file, { upsert: true });
+        if (error) throw error;
+        const { publicUrl } = supabase.storage.from('products').getPublicUrl(`products/${file.name}`);
+        imageUrls.push(publicUrl);
       }
 
-      await addDoc(collection(db, 'products'), { ...newProduct, images: imageUrls });
+      await supabase.from('products').insert([{ ...newProduct, images: imageUrls }]);
       alert('تم إضافة المنتج');
 
-      setNewProduct({ name: '', description: '', price: 0, images: [], colors: [], sizes: [], quantities: {}, section: '' });
+      setNewProduct({
+        name: '',
+        description: '',
+        price: 0,
+        images: [],
+        colors: [],
+        sizes: [],
+        quantities: {},
+        totalQuantity: 0,
+        section: ''
+      });
     } catch (err) {
       console.error(err);
       alert('حدث خطأ أثناء إضافة المنتج');
@@ -189,7 +202,8 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
 
   const handleDeleteProduct = async id => {
     try {
-      await deleteDoc(doc(db, 'products', id));
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       console.error(err);
@@ -197,11 +211,13 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     }
   };
 
+  // -------- الشحن --------
   const handleAddShipping = async () => {
     if (!newProvince || !newCost) return;
     try {
-      const docRef = await addDoc(collection(db, 'shipping'), { province: newProvince, cost: newCost });
-      setShipping(prev => [...prev, { id: docRef.id, province: newProvince, cost: newCost }]);
+      const { data, error } = await supabase.from('shipping').insert([{ province: newProvince, cost: newCost }]);
+      if (error) throw error;
+      setShipping(prev => [...prev, { id: data[0].id, province: newProvince, cost: newCost }]);
       setNewProvince('');
       setNewCost(0);
     } catch (err) {
@@ -210,10 +226,11 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
     }
   };
 
+  // -------- الطلبات --------
   const markAsShipped = async orderId => {
     try {
-      const orderRef = doc(db, 'orders', orderId);
-      await updateDoc(orderRef, { status: 'تم الشحن' });
+      const { error } = await supabase.from('orders').update({ status: 'تم الشحن' }).eq('id', orderId);
+      if (error) throw error;
       setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: 'تم الشحن' } : o)));
     } catch (err) {
       console.error(err);
@@ -223,8 +240,94 @@ const AdminPanel = ({ currentUserEmail, currentUserPassword }) => {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial', background: '#fff0f5', minHeight: '100vh' }}>
-      <h2 style={{ color: '#ff69b4' }}>لوحة التحكم (أكثر من أدمن مدعوم)</h2>
-      {/* بقية الكود كما هو */}
+      <h2 style={{ color: '#ff69b4', marginBottom: '20px' }}>لوحة التحكم (أكثر من أدمن مدعوم)</h2>
+
+      {/* إعدادات المتجر */}
+      <div style={{ marginBottom: '25px', padding: '15px', border: '2px solid #ff69b4', borderRadius: '12px', background: '#fff' }}>
+        <h3 style={{ color: '#ff1493' }}>إعدادات المتجر</h3>
+        <input type="text" placeholder="اسم المتجر" value={storeName} onChange={e => setStoreName(e.target.value)} style={{ margin: '5px', padding: '5px', width: '250px' }} />
+        <input type="file" onChange={handleLogoUpload} style={{ margin: '5px' }} />
+        <input type="text" placeholder="WhatsApp" value={socialLinks.whatsapp} onChange={e => setSocialLinks(prev => ({ ...prev, whatsapp: e.target.value }))} style={{ margin: '5px', padding: '5px', width: '250px' }} />
+        <input type="text" placeholder="Instagram" value={socialLinks.instagram} onChange={e => setSocialLinks(prev => ({ ...prev, instagram: e.target.value }))} style={{ margin: '5px', padding: '5px', width: '250px' }} />
+        <input type="text" placeholder="Facebook" value={socialLinks.facebook} onChange={e => setSocialLinks(prev => ({ ...prev, facebook: e.target.value }))} style={{ margin: '5px', padding: '5px', width: '250px' }} />
+        <div style={{ marginTop: '10px' }}>
+          <button onClick={handleSaveAllSettings} style={{ marginRight: '10px', padding: '5px 10px', background: '#ff69b4', color: '#fff', border: 'none', borderRadius: '5px' }}>حفظ جميع الإعدادات</button>
+          <button onClick={handleSaveStoreSettingsOnly} style={{ padding: '5px 10px', background: '#c71585', color: '#fff', border: 'none', borderRadius: '5px' }}>حفظ الاسم والشعار فقط</button>
+        </div>
+      </div>
+
+      {/* إضافة المنتج مع الوصف والكمية */}
+      <div style={{ marginBottom: '25px', padding: '15px', border: '2px solid #ff69b4', borderRadius: '12px', background: '#fff' }}>
+        <h3 style={{ color: '#ff1493' }}>إضافة منتج جديد</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+          <input type="text" placeholder="اسم المنتج" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} style={{ padding: '5px', width: '200px' }} />
+          <input type="number" placeholder="السعر" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} style={{ padding: '5px', width: '100px' }} />
+          <input type="text" placeholder="القسم" value={newProduct.section} onChange={e => setNewProduct({...newProduct, section: e.target.value})} style={{ padding: '5px', width: '150px' }} />
+          <input type="file" multiple onChange={handleProductImagesUpload} style={{ padding: '5px' }} />
+        </div>
+
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <textarea placeholder="الوصف" value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} style={{ padding: '5px', width: '400px', height: '60px' }} />
+          <input type="text" placeholder="الألوان (افصل بين كل لون بفاصلة)" value={newProduct.colors.join(',')} onChange={e => setNewProduct({...newProduct, colors: e.target.value.split(',')})} style={{ padding: '5px', width: '400px' }} />
+          <input type="text" placeholder="المقاسات (افصل بين كل مقاس بفاصلة)" value={newProduct.sizes.join(',')} onChange={e => setNewProduct({...newProduct, sizes: e.target.value.split(',')})} style={{ padding: '5px', width: '400px' }} />
+          <input type="text" placeholder="الكميات لكل لون-مقاس بصيغة color-size:quantity,مثال Red-M:10,Blue-L:5" value={Object.entries(newProduct.quantities).map(([k,v]) => `${k}:${v}`).join(',')} onChange={e => {
+            const obj = {};
+            e.target.value.split(',').forEach(pair => {
+              const [key,val] = pair.split(':');
+              if(key && val) obj[key.trim()] = Number(val);
+            });
+            setNewProduct({...newProduct, quantities: obj, totalQuantity: Object.values(obj).reduce((a,b)=>a+b,0)});
+          }} style={{ padding: '5px', width: '600px' }} />
+          <p>إجمالي كمية المنتج: {newProduct.totalQuantity}</p>
+        </div>
+
+        <button onClick={handleAddProduct} style={{ marginTop: '10px', padding: '5px 10px', background: '#ff69b4', color: '#fff', border: 'none', borderRadius: '5px' }}>إضافة المنتج</button>
+      </div>
+
+      {/* باقي الأقسام والشحن والطلبات كما في الكود السابق */}
+      {/* الأقسام */}
+      <div style={{ marginBottom: '25px', padding: '15px', border: '2px solid #ff69b4', borderRadius: '12px', background: '#fff' }}>
+        <h3 style={{ color: '#ff1493' }}>الأقسام</h3>
+        <input type="text" placeholder="اسم القسم" value={newSectionName} onChange={e => setNewSectionName(e.target.value)} style={{ marginRight: '5px', padding: '5px' }} />
+        <button onClick={handleAddSection} style={{ padding: '5px 10px', background: '#ff69b4', color: '#fff', border: 'none', borderRadius: '5px' }}>إضافة قسم</button>
+        <ul style={{ marginTop: '10px' }}>
+          {sections.map(s => (
+            <li key={s.id} style={{ marginBottom: '5px' }}>
+              {s.name} <button onClick={() => handleDeleteSection(s.id)} style={{ marginLeft: '5px', padding: '2px 5px', background: '#c71585', color: '#fff', border: 'none', borderRadius: '3px' }}>حذف</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* الشحن */}
+      <div style={{ marginBottom: '25px', padding: '15px', border: '2px solid #ff69b4', borderRadius: '12px', background: '#fff' }}>
+        <h3 style={{ color: '#ff1493' }}>الشحن</h3>
+        <input type="text" placeholder="المحافظة" value={newProvince} onChange={e => setNewProvince(e.target.value)} style={{ marginRight: '5px', padding: '5px' }} />
+        <input type="number" placeholder="السعر" value={newCost} onChange={e => setNewCost(Number(e.target.value))} style={{ marginRight: '5px', padding: '5px', width: '100px' }} />
+        <button onClick={handleAddShipping} style={{ padding: '5px 10px', background: '#ff69b4', color: '#fff', border: 'none', borderRadius: '5px' }}>إضافة شحن</button>
+        <ul style={{ marginTop: '10px' }}>
+          {shipping.map(s => (
+            <li key={s.id}>{s.province}: {s.cost} جنيه</li>
+          ))}
+        </ul>
+      </div>
+
+      {/* الطلبات */}
+      <div style={{ marginBottom: '25px', padding: '15px', border: '2px solid #ff69b4', borderRadius: '12px', background: '#fff' }}>
+        <h3 style={{ color: '#ff1493' }}>الطلبات</h3>
+        {orders.map(o => (
+          <div key={o.id} style={{ border: '1px solid #ccc', marginBottom: '5px', padding: '5px', borderRadius: '5px' }}>
+            <p>العميل: {o.customer?.name}</p>
+            <p>الهاتف: {o.customer?.phone}</p>
+            <p>العنوان: {o.customer?.address}</p>
+            <p>عدد المنتجات: {o.items?.length}</p>
+            <p>الإجمالي: {o.total} جنيه</p>
+            <p>الحالة: {o.status || 'قيد الانتظار'}</p>
+            {o.status !== 'تم الشحن' && <button onClick={() => markAsShipped(o.id)} style={{ padding: '2px 5px', background: '#c71585', color: '#fff', border: 'none', borderRadius: '3px' }}>تحديد كتم الشحن</button>}
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 };
