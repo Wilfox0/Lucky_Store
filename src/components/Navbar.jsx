@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../CartContext';
 
 const Navbar = ({
-  cartCount = 0,
   ownerEmail,
   currentUserEmail,
   storeSettings = {},
@@ -11,6 +11,8 @@ const Navbar = ({
   sections = [],
   onSelectSection = null
 }) => {
+  const { cart } = useCart(); 
+  const cartCount = cart.reduce((sum, item) => sum + (item.quantity ?? 1), 0); // العدد الصحيح
   const isOwner = ownerEmail === currentUserEmail;
 
   return (
