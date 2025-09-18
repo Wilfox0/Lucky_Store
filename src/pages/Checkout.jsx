@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { useCart } from "../CartContext";
-import { db } from "../firebase";
-import { doc, updateDoc, getDoc, collection, addDoc } from "firebase/firestore";
+import { supabase } from "../supabaseClient";
+
+// مكتبة الرسائل التحذيرية (Toast)
+import Toast from "../components/Toast";
+
+// دالة إرسال إشعار Telegram من ملف API الجديد
+import { sendTelegramNotification } from "../api/sendTelegramNotification";
 
 const shippingRates = {
   "القاهرة": 30,
@@ -22,24 +27,41 @@ function Checkout() {
     governorate: "القاهرة"
   });
 
+  const [toasts, setToasts] = useState([]);
+
+  // دالة لعرض الرسائل التحذيرية
+  const showToast = (message, type = "info") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleQuantityChange = (id, delta) => {
-    const item = cart.find((i) => i.id === id);
+  const handleQuantityChange = (id, color, size, delta) => {
+    const item = cart.find((i) => i.id === id && i.selectedColor === color && i.selectedSize === size);
     if (!item) return;
+
     const currentQty = item.quantity ?? 1;
-    const newQty = Math.max(currentQty + delta, 1);
-    updateQuantity(id, newQty);
+    const newQty = currentQty + delta;
+
+    const key = `${color}-${size}`;
+    const maxQty = item.quantities?.[key] ?? 99;
+
+    if (newQty > maxQty) {
+      showToast(`الحد الأقصى للكمية لهذا المنتج هو ${maxQty}`, "warning");
+      return; // رفض زيادة الكمية
+    }
+
+    const finalQty = Math.max(newQty, 1);
+    updateQuantity(id, color, size, finalQty);
   };
 
   const shippingCost = shippingRates[customer.governorate] || 0;
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + item.price * (item.quantity ?? 1),
-    0
-  );
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * (item.quantity ?? 1), 0);
   const totalWithShipping = cartTotal + shippingCost;
 
   const handleConfirmOrder = async () => {
@@ -48,38 +70,47 @@ function Checkout() {
     }
 
     try {
-      // 1️⃣ تحديث المخزون في Firebase
+      // تحديث المخزون لكل منتج
       for (let item of cart) {
-        const prodRef = doc(db, "products", item.id);
-        const prodSnap = await getDoc(prodRef);
-        if (prodSnap.exists()) {
-          const currentStock = prodSnap.data().quantities?.[item.selectedSize] || 0;
-          const newStock = Math.max(currentStock - (item.quantity ?? 1), 0);
-          await updateDoc(prodRef, {
-            [`quantities.${item.selectedSize}`]: newStock
-          });
+        const { data: productData, error } = await supabase
+          .from("products")
+          .select("quantities")
+          .eq("id", item.id)
+          .single();
+
+        if (error) {
+          console.error("خطأ عند جلب المنتج:", error);
+          continue;
         }
+
+        const key = `${item.selectedColor}-${item.selectedSize}`;
+        const currentStock = productData.quantities?.[key] || 0;
+        const newStock = Math.max(currentStock - (item.quantity ?? 1), 0);
+
+        const updatedQuantities = { ...productData.quantities, [key]: newStock };
+
+        await supabase
+          .from("products")
+          .update({ quantities: updatedQuantities })
+          .eq("id", item.id);
       }
 
-      // 2️⃣ إضافة الطلب في collection "orders"
-      await addDoc(collection(db, "orders"), {
-        customer,
-        items: cart,
-        shippingCost,
-        total: totalWithShipping,
-        status: "جديد",
-        createdAt: new Date()
-      });
+      // إضافة الطلب الجديد
+      await supabase.from("orders").insert([
+        {
+          customer,
+          items: cart,
+          shipping_cost: shippingCost,
+          total: totalWithShipping,
+          status: "جديد",
+          created_at: new Date().toISOString()
+        }
+      ]);
 
-      // 3️⃣ إرسال إشعار عبر Email (مثال باستخدام Firebase Function أو API)
-      fetch("/api/sendOrderNotification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: "تم طلب جديد",
-          message: `هناك طلب جديد من ${customer.name}, الهاتف: ${customer.phone}, إجمالي: ${totalWithShipping} جنيه`
-        })
-      });
+      // ==== إرسال إشعار Telegram باستخدام API الجديد ====
+      const telegramMessage = `طلب جديد من: ${customer.name}\nالهاتف: ${customer.phone}\nالعنوان: ${customer.address}\nعدد المنتجات: ${cart.length}\nالإجمالي: ${totalWithShipping} جنيه`;
+      sendTelegramNotification(telegramMessage);
+      // ======================================================
 
       alert("تم تأكيد الطلب! سيتم تحديث المخزون والإشعارات.");
       clearCart();
@@ -96,7 +127,6 @@ function Checkout() {
         <p style={{ textAlign: "center" }}>السلة فارغة</p>
       ) : (
         <>
-          {/* جدول المنتجات */}
           <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%", marginBottom: "20px", textAlign: "center" }}>
             <thead style={{ backgroundColor: "#f2f2f2" }}>
               <tr>
@@ -111,18 +141,18 @@ function Checkout() {
             </thead>
             <tbody>
               {cart.map((item) => (
-                <tr key={item.id}>
+                <tr key={`${item.id}-${item.selectedColor}-${item.selectedSize}`}>
                   <td>{item.name}</td>
                   <td>{item.price} جنيه</td>
                   <td>
-                    <button onClick={() => handleQuantityChange(item.id, -1)}>-</button>
+                    <button onClick={() => handleQuantityChange(item.id, item.selectedColor, item.selectedSize, -1)}>-</button>
                     <span style={{ margin: "0 8px" }}>{item.quantity ?? 1}</span>
-                    <button onClick={() => handleQuantityChange(item.id, 1)}>+</button>
+                    <button onClick={() => handleQuantityChange(item.id, item.selectedColor, item.selectedSize, 1)}>+</button>
                   </td>
                   <td>{item.selectedColor || "-"}</td>
                   <td>{item.selectedSize || "-"}</td>
                   <td>{(item.price * (item.quantity ?? 1)).toFixed(2)} جنيه</td>
-                  <td><button onClick={() => removeFromCart(item.id)}>حذف</button></td>
+                  <td><button onClick={() => removeFromCart(item.id, item.selectedColor, item.selectedSize)}>حذف</button></td>
                 </tr>
               ))}
             </tbody>
@@ -149,9 +179,9 @@ function Checkout() {
             <p><strong>الإجمالي الكلي: {totalWithShipping} جنيه</strong></p>
           </div>
 
-          {/* فاتورة تفصيلية */}
+          {/* فاتورة تفصيلية لكل منتج */}
           <div style={{ marginBottom: "30px", padding: "15px", border: "1px solid #ccc", borderRadius: "8px" }}>
-            <h3>فاتورة تفصيلية لكل منتج</h3>
+            <h3>فاتورة تفصيلية لكل منتج قبل تأكيد الطلب</h3>
             <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%", textAlign: "center" }}>
               <thead style={{ backgroundColor: "#f9f9f9" }}>
                 <tr>
@@ -165,7 +195,7 @@ function Checkout() {
               </thead>
               <tbody>
                 {cart.map((item) => (
-                  <tr key={item.id}>
+                  <tr key={`${item.id}-${item.selectedColor}-${item.selectedSize}`}>
                     <td>{item.name}</td>
                     <td>{item.price} جنيه</td>
                     <td>{item.quantity ?? 1}</td>
@@ -185,6 +215,9 @@ function Checkout() {
           </div>
         </>
       )}
+
+      {/* عرض الرسائل التحذيرية */}
+      {toasts.map(t => <Toast key={t.id} message={t.message} type={t.type} />)}
     </div>
   );
 }

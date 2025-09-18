@@ -1,20 +1,41 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../CartContext';
+import Toast from './Toast'; // مكون toast صغير لعرض الرسائل
 
-const ProductCard = ({ product, addToCart }) => {
+const ProductCard = ({ product }) => {
+  const { addToCart, cart } = useCart();
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] || '');
   const [selectedColor, setSelectedColor] = useState(product.colors[0] || '');
+  const [toasts, setToasts] = useState([]);
 
-  const remainingQuantity = product.quantities[`${selectedColor}-${selectedSize}`] || 0;
+  const key = `${selectedColor}-${selectedSize}`;
+  const remainingQuantity = product.quantities[key] || 0;
+
+  const showToast = (message, type = 'warning') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  };
 
   const handleAdd = () => {
     if (!selectedSize || !selectedColor) {
-      alert('يرجى اختيار اللون والمقاس');
+      showToast('يرجى اختيار اللون والمقاس', 'error');
       return;
     }
-    if (remainingQuantity === 0) return;
+
+    const existingItem = cart.find(
+      item => item.id === product.id && item.selectedColor === selectedColor && item.selectedSize === selectedSize
+    );
+    const currentInCart = existingItem ? existingItem.quantity : 0;
+
+    if (currentInCart + 1 > remainingQuantity) {
+      showToast(`الحد الأقصى للكمية لهذا المنتج هو ${remainingQuantity}`, 'warning');
+      return;
+    }
+
     addToCart(product, selectedColor, selectedSize);
-    alert('تم إضافة المنتج إلى السلة');
+    showToast('تم إضافة المنتج إلى السلة', 'success');
   };
 
   return (
@@ -28,6 +49,7 @@ const ProductCard = ({ product, addToCart }) => {
       boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
       transition: 'transform 0.2s'
     }}>
+      {/* صور وروابط المنتج */}
       <Link to={`/product/${product.id}`}>
         <img
           src={product.images[0]}
@@ -36,9 +58,14 @@ const ProductCard = ({ product, addToCart }) => {
           loading="lazy"
         />
       </Link>
-      <h3>{product.name}</h3>
+      <h3>
+        <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          {product.name}
+        </Link>
+      </h3>
+
       <p>السعر: {product.price} جنيه</p>
-      <p>الكميه المتبقيه: {remainingQuantity}</p>
+      <p>الكمية المتبقية: {remainingQuantity}</p>
       <p>التقييم: {'⭐'.repeat(product.rating || 0)}</p>
 
       <div>
@@ -69,6 +96,11 @@ const ProductCard = ({ product, addToCart }) => {
       >
         {remainingQuantity === 0 ? 'انتهى' : 'أضف إلى السلة'}
       </button>
+
+      {/* رسائل التحذير والنجاح */}
+      <div style={{ position: 'relative' }}>
+        {toasts.map(t => <Toast key={t.id} message={t.message} type={t.type} />)}
+      </div>
     </div>
   );
 };

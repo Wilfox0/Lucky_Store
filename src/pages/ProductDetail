@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "../supabaseClient";
 
 const ProductDetail = ({ addToCart }) => {
   const { productId } = useParams();
@@ -12,11 +11,16 @@ const ProductDetail = ({ addToCart }) => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const productRef = doc(db, "products", productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const data = productSnap.data();
-          setProduct({ id: productSnap.id, ...data });
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("id", productId)
+          .single();
+
+        if (error) {
+          console.error("❌ خطأ في تحميل المنتج:", error);
+        } else {
+          setProduct(data);
           setSelectedColor(data.colors[0] || "");
           setSelectedSize(data.sizes[0] || "");
         }

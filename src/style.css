@@ -113,7 +113,7 @@ button:hover {
   transform: scale(1.05);
 }
 
-/* Social & WhatsApp links in Navbar */
+/* Social links */
 .social-links-navbar a {
   color: #c71585;
   font-size: 20px;
@@ -222,7 +222,6 @@ button:hover {
   color: #c71585;
 }
 
-/* Small add-to-cart button */
 .product-card .add-cart-btn {
   background-color: #c71585;
   color: #fff;
