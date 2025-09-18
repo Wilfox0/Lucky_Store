@@ -1,24 +1,41 @@
-// src/components/Orders.jsx
+// src/pages/Orders.jsx
 import React, { useEffect, useState } from "react";
-import { db } from "../firebase";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { supabase } from "../supabaseClient";
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
-      const ordersSnap = await getDocs(collection(db, "orders"));
-      setOrders(ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("خطأ عند جلب الطلبات:", error);
+      } else {
+        setOrders(data);
+      }
     };
 
     fetchOrders();
   }, []);
 
   const markAsShipped = async (orderId) => {
-    const orderRef = doc(db, "orders", orderId);
-    await updateDoc(orderRef, { status: "تم الشحن" });
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: "تم الشحن" } : o));
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "تم الشحن" })
+      .eq("id", orderId);
+
+    if (error) {
+      console.error("خطأ عند تحديث حالة الطلب:", error);
+      return;
+    }
+
+    setOrders(prev =>
+      prev.map(o => (o.id === orderId ? { ...o, status: "تم الشحن" } : o))
+    );
   };
 
   return (
@@ -30,7 +47,7 @@ const Orders = () => {
           <p><strong>العميل:</strong> {order.customer.name}</p>
           <p><strong>الهاتف:</strong> {order.customer.phone}</p>
           <p><strong>العنوان:</strong> {order.customer.address}</p>
-          <p><strong>عدد المنتجات:</strong> {order.cart.length}</p>
+          <p><strong>عدد المنتجات:</strong> {order.cart?.length}</p>
           <p><strong>الإجمالي:</strong> {order.total} جنيه</p>
           <p><strong>حالة الطلب:</strong> {order.status || "قيد الانتظار"}</p>
           {order.status !== "تم الشحن" && (
