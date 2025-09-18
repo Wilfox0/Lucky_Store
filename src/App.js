@@ -1,100 +1,74 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { db } from "./firebase";
-import { doc, getDoc } from "firebase/firestore";
+// src/App.js
+import React, { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Checkout from "./pages/Checkout";
+import AdminLogin from "./pages/AdminLogin";
+import AdminPanel from "./pages/AdminPanel";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import { CartProvider } from "./CartContext";
 
-const ProductDetail = ({ addToCart }) => {
-  const { productId } = useParams();
-  const [product, setProduct] = useState(null);
-  const [selectedColor, setSelectedColor] = useState("");
-  const [selectedSize, setSelectedSize] = useState("");
+// 👇 يمكنك تمرير المنتجات من Firebase أو ثابتة مؤقتًا
+const sampleProducts = [
+  {
+    id: "1",
+    name: "منتج تجريبي",
+    price: 100,
+    images: ["https://via.placeholder.com/250"],
+    colors: ["أحمر", "أزرق"],
+    sizes: ["S", "M", "L"],
+    quantities: { "أحمر-S": 5, "أزرق-M": 3 },
+    rating: 4,
+    section: "ملابس"
+  }
+];
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const productRef = doc(db, "products", productId);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const data = productSnap.data();
-          setProduct({ id: productSnap.id, ...data });
-          setSelectedColor(data.colors[0] || "");
-          setSelectedSize(data.sizes[0] || "");
-        }
-      } catch (err) {
-        console.error("❌ خطأ في تحميل المنتج:", err);
-      }
-    };
-    fetchProduct();
-  }, [productId]);
-
-  if (!product) return <p>جارٍ تحميل المنتج...</p>;
-
-  const remainingQuantity = product.quantities?.[`${selectedColor}-${selectedSize}`] || 0;
-
-  const handleAdd = () => {
-    if (!selectedColor || !selectedSize) {
-      alert("يرجى اختيار اللون والمقاس");
-      return;
-    }
-    if (remainingQuantity === 0) return;
-    addToCart(product, selectedColor, selectedSize);
-    alert("تم إضافة المنتج إلى السلة");
+function App() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentAdmin, setCurrentAdmin] = useState(localStorage.getItem("adminEmail") || "");
+  
+  // إعدادات المتجر المؤقتة
+  const storeSettings = {
+    storeName: "متجري",
+    logo: "", // ضع رابط شعارك هنا إذا أردت
+    socialLinks: { whatsapp: "", instagram: "", facebook: "" }
   };
 
   return (
-    <div style={{ padding: "20px", display: "flex", flexWrap: "wrap", gap: "20px" }}>
-      <div style={{ flex: "1 1 300px" }}>
-        {product.images.map((img, idx) => (
-          <img
-            key={idx}
-            src={img}
-            alt={`${product.name} ${idx + 1}`}
-            style={{ width: "100%", marginBottom: "10px", borderRadius: "10px" }}
-            loading="lazy"
+    <CartProvider>
+      <Router>
+        <Navbar
+          cartCount={0}
+          ownerEmail="admin1@example.com"
+          currentUserEmail={currentAdmin}
+          storeSettings={storeSettings}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          sections={["ملابس", "إكسسوارات"]}
+        />
+
+        <Routes>
+          <Route path="/" element={<Home products={sampleProducts} searchTerm={searchTerm} />} />
+          <Route path="/checkout" element={<Checkout />} />
+          
+          {/* صفحة تسجيل دخول الأدمن */}
+          <Route
+            path="/admin-login"
+            element={<AdminLogin admins={["admin1@example.com","admin2@example.com"]} setCurrentAdmin={setCurrentAdmin} />}
           />
-        ))}
-      </div>
 
-      <div style={{ flex: "1 1 300px" }}>
-        <h2>{product.name}</h2>
-        <p><strong>السعر:</strong> {product.price} جنيه</p>
-        <p><strong>الكميه المتبقيه:</strong> {remainingQuantity}</p>
-        <p><strong>التقييم:</strong> {'⭐'.repeat(product.rating || 0)}</p>
-        {product.description && (
-          <p><strong>الوصف:</strong> {product.description}</p>
-        )}
+          {/* صفحة لوحة التحكم */}
+          <Route
+            path="/admin"
+            element={<AdminPanel currentUserEmail={currentAdmin} currentUserPassword="123456" />}
+          />
+        </Routes>
 
-        <div style={{ marginTop: "10px" }}>
-          <label>اللون: </label>
-          <select value={selectedColor} onChange={(e) => setSelectedColor(e.target.value)}>
-            {product.colors.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-
-        <div style={{ marginTop: "10px" }}>
-          <label>المقاس: </label>
-          <select value={selectedSize} onChange={(e) => setSelectedSize(e.target.value)}>
-            {product.sizes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-
-        <button
-          onClick={handleAdd}
-          disabled={remainingQuantity === 0}
-          style={{
-            marginTop: "15px",
-            padding: "8px 15px",
-            borderRadius: "5px",
-            backgroundColor: remainingQuantity === 0 ? "#ccc" : "#c71585",
-            color: "#fff",
-            cursor: remainingQuantity === 0 ? "not-allowed" : "pointer"
-          }}
-        >
-          {remainingQuantity === 0 ? "انتهى" : "أضف إلى السلة"}
-        </button>
-      </div>
-    </div>
+        <Footer storeName={storeSettings.storeName} socialLinks={storeSettings.socialLinks} />
+      </Router>
+    </CartProvider>
   );
-};
+}
 
-export default ProductDetail;
+export default App;
